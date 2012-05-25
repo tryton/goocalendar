@@ -537,14 +537,22 @@ class Calendar(goocanvas.Canvas):
 
     def on_key_press_event(self, widget, event):
         date = self.get_selected_date()
-        if event.keyval == 65362:  # Up
+        if event.keyval == gtk.gdk.keyval_from_name('Up'):
             self.select(date - datetime.timedelta(7))
-        elif event.keyval == 65364:  # Down
+        elif event.keyval == gtk.gdk.keyval_from_name('Down'):
             self.select(date + datetime.timedelta(7))
-        elif event.keyval == 65361:  # Left
+        elif event.keyval == gtk.gdk.keyval_from_name('Left'):
             self.select(date - datetime.timedelta(1))
-        elif event.keyval == 65363:  # Right
+        elif event.keyval == gtk.gdk.keyval_from_name('Right'):
             self.select(date + datetime.timedelta(1))
+        elif event.keyval == gtk.gdk.keyval_from_name('m'): # Month view
+            if self.zoom != self.ZOOM_MONTH:
+                self.zoom = self.ZOOM_MONTH
+                self.update()
+        elif event.keyval == gtk.gdk.keyval_from_name('w'): # Week view
+            if self.zoom != self.ZOOM_WEEK:
+                self.zoom = self.ZOOM_WEEK
+                self.update()
         return True
 
     def on_event_item_button_press_event(self, item, rect, event):

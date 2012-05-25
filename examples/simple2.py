@@ -14,7 +14,6 @@ def on_event_clicked(calendar, event, event_store):
 
 def on_day_selected(calendar, day):
     print "Day %s was clicked" % day
-    calendar.set_zoom(calendar.ZOOM_WEEK)
 
 window = gtk.Window()
 event_store = GooCalendar.EventStore()
