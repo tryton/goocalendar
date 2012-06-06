@@ -19,7 +19,7 @@ class Calendar(goocanvas.Canvas):
     ZOOM_MONTH = 1
     ZOOM_WEEK = 2
 
-    def __init__(self, event_store):
+    def __init__(self, event_store=None):
         super(Calendar, self).__init__()
         self.cal = calendar.Calendar(calendar.SUNDAY)
         self.today = time.localtime(time.time())[:3]
@@ -29,7 +29,10 @@ class Calendar(goocanvas.Canvas):
         self.timeline = None
         self.line_height = 0
         self.realized = False
-        self.event_store = event_store
+        self.event_store = None
+        self._event_removed_sigid = None
+        self._event_added_sigid = None
+        self.set_event_store(event_store)
         self.days = [None for i in xrange(6 * 7)]
         self.event_items = []
         self.zoom = self.ZOOM_MONTH
@@ -48,11 +51,6 @@ class Calendar(goocanvas.Canvas):
         self.connect_after('realize', self.on_realize)
         self.connect('size-allocate', self.on_size_allocate)
         self.connect('key-press-event', self.on_key_press_event)
-        if event_store is not None:
-            self.event_store.connect('event-removed',
-                self.on_event_store_event_removed)
-            self.event_store.connect('event-added',
-                self.on_event_store_event_added)
         gobject.signal_new('event-clicked',
             Calendar,
             gobject.SIGNAL_RUN_FIRST,
@@ -134,6 +132,22 @@ class Calendar(goocanvas.Canvas):
 
     def get_selected_date(self):
         return datetime.datetime(*self.selected_date)
+
+    def set_event_store(self, event_store):
+        # Disconnect previous event store if any
+        if self.event_store:
+            self.event_store.disconnect(self._event_removed_sigid)
+            self.event_store.disconnect(self._event_added_sigid)
+
+        # Set and connect new event_store
+        self.event_store = event_store
+        self.update()
+        if not event_store:
+            return
+        self._event_removed_sigid = self.event_store.connect('event-removed',
+            self.on_event_store_event_removed)
+        self._event_added_sigid = self.event_store.connect('event-added',
+            self.on_event_store_event_added)
 
     def on_realize(self, *args):
         self.realized = True
@@ -354,6 +368,18 @@ class Calendar(goocanvas.Canvas):
         return None
 
     def draw_events(self):
+        # Clear previous events.
+        for item in self.event_items:
+            self.get_root_item().remove_child(item)
+        self.event_items = []
+        for day in self.days:
+            day.lines.clear()
+            day.show_indic = False
+            day.update()
+
+        if not self.event_store:
+            return
+
         if self.zoom == self.ZOOM_MONTH:
             weeks = util.my_monthdatescalendar(self.cal, *self.selected_date)
             dates = []
@@ -368,15 +394,6 @@ class Calendar(goocanvas.Canvas):
         end = datetime.datetime(*dates[-1].timetuple()[:3])
         events = self.event_store.get_events(start, end)
         events.sort(util.event_days, reverse=True)
-
-        # Clear previous events.
-        for item in self.event_items:
-            self.get_root_item().remove_child(item)
-        self.event_items = []
-        for day in self.days:
-            day.lines.clear()
-            day.show_indic = False
-            day.update()
 
         # Draw all-day events, longest event first.
         max_y = self.selected_day.line_height
