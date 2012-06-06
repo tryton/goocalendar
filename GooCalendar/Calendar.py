@@ -51,16 +51,6 @@ class Calendar(goocanvas.Canvas):
         self.connect_after('realize', self.on_realize)
         self.connect('size-allocate', self.on_size_allocate)
         self.connect('key-press-event', self.on_key_press_event)
-        gobject.signal_new('event-clicked',
-            Calendar,
-            gobject.SIGNAL_RUN_FIRST,
-            gobject.TYPE_NONE,
-            (gobject.TYPE_PYOBJECT,))
-        gobject.signal_new('day-selected',
-            Calendar,
-            gobject.SIGNAL_RUN_FIRST,
-            gobject.TYPE_NONE,
-            (gobject.TYPE_PYOBJECT,))
 
     def select_from_tuple(self, new_date):
         old_date = self.selected_date
@@ -577,3 +567,14 @@ class Calendar(goocanvas.Canvas):
 
     def on_button_press_event(self, day, widget2, event):
         self.select(day.date)
+
+gobject.signal_new('event-clicked',
+    Calendar,
+    gobject.SIGNAL_RUN_FIRST,
+    gobject.TYPE_NONE,
+    (gobject.TYPE_PYOBJECT,))
+gobject.signal_new('day-selected',
+    Calendar,
+    gobject.SIGNAL_RUN_FIRST,
+    gobject.TYPE_NONE,
+    (gobject.TYPE_PYOBJECT,))
