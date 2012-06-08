@@ -14,29 +14,27 @@ class DayItem(goocanvas.Group):
         super(DayItem, self).__init__()
 
         self.cal = cal
-        self.x = kwargs.get('x')
-        self.y = kwargs.get('y')
-        self.width = kwargs.get('width')
-        self.height = kwargs.get('height')
+        self.x = kwargs.get('x', 0)
+        self.y = kwargs.get('y', 0)
+        self.width = kwargs.get('width', 0)
+        self.height = kwargs.get('height', 0)
         self.border_color = kwargs.get('border_color')
         self.body_color = kwargs.get('body_color')
         self.full_border = kwargs.get('full_border')
         self.date = kwargs.get('date')
         self.type = kwargs.get('type', 'month')
         self.show_indic = False
-        self.line_height = None
-        self.font_size = None
+        self.line_height = 0
+        self.font_size = 0
         self.lines = {}
         self.n_lines = 0
+        self.title_text_color = ""
 
         # Create canvas items.
         self.border = goocanvas.Rect(parent=self)
         self.text = goocanvas.Text(parent=self)
         self.box = goocanvas.Rect(parent=self)
         self.indic = goocanvas.Rect(parent=self)
-
-        if self.x is not None:
-            self.update()
 
     def update(self):
         if self.type == 'month':
@@ -49,10 +47,13 @@ class DayItem(goocanvas.Group):
         font_descr = style.font_desc.copy()
         font_descr.set_absolute_size(self.font_size * pango.SCALE)
         self.font = font_descr.to_string()
-        date_tuple = self.date.timetuple()[:3]
-        week_day = calendar.weekday(*date_tuple)
-        day_name = calendar.day_name[week_day]
-        caption = '%s %s' % (date_tuple[2], day_name)
+        if self.date:
+            date_tuple = self.date.timetuple()[:3]
+            week_day = calendar.weekday(*date_tuple)
+            day_name = calendar.day_name[week_day]
+            caption = '%s %s' % (date_tuple[2], day_name)
+        else:
+            caption = ""
 
         # Draw the border.
         self.border.set_property('x', self.x)
@@ -74,13 +75,13 @@ class DayItem(goocanvas.Group):
         if self.full_border:
             box_x = self.x + 2
             box_y = self.y + self.line_height
-            box_width = self.width - 4
-            box_height = self.height - self.line_height - 3
+            box_width = max(self.width - 4, 0)
+            box_height = max(self.height - self.line_height - 3, 0)
         else:
             box_x = self.x + 1
             box_y = self.y + self.line_height
-            box_width = self.width - 2
-            box_height = self.height - self.line_height
+            box_width = max(self.width - 2, 0)
+            box_height = max(self.height - self.line_height, 0)
         self.box.set_property('x', box_x)
         self.box.set_property('y', box_y)
         self.box.set_property('width', box_width)

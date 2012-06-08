@@ -19,7 +19,7 @@ class Calendar(goocanvas.Canvas):
     ZOOM_MONTH = 1
     ZOOM_WEEK = 2
 
-    def __init__(self, event_store=None):
+    def __init__(self, event_store=None, zoom=ZOOM_MONTH):
         super(Calendar, self).__init__()
         self.cal = calendar.Calendar(calendar.SUNDAY)
         self.today = time.localtime(time.time())[:3]
@@ -33,9 +33,8 @@ class Calendar(goocanvas.Canvas):
         self._event_removed_sigid = None
         self._event_added_sigid = None
         self.set_event_store(event_store)
-        self.days = [None for i in xrange(6 * 7)]
         self.event_items = []
-        self.zoom = self.ZOOM_MONTH
+        self.zoom = zoom
         self.set_bounds(0, 0, 200, 200)
         self.set_flags(gtk.CAN_FOCUS)
         self.set_events(gtk.gdk.EXPOSURE_MASK
@@ -51,6 +50,19 @@ class Calendar(goocanvas.Canvas):
         self.connect_after('realize', self.on_realize)
         self.connect('size-allocate', self.on_size_allocate)
         self.connect('key-press-event', self.on_key_press_event)
+
+        # Initialize background and days and add them to canvas
+        root = self.get_root_item()
+        style = self.get_style()
+        color = util.color_to_string(style.bg[gtk.STATE_PRELIGHT])
+        self.bg_rect = goocanvas.Rect(parent=root, x=0, y=0, \
+            stroke_color=color, fill_color=color)
+        self.days = []
+        while len(self.days) < 42: # 6 rows of 7 days
+            box = DayItem(self)
+            root.add_child(box)
+            box.connect('button_press_event', self.on_button_press_event)
+            self.days.append(box)
 
     def select_from_tuple(self, new_date):
         old_date = self.selected_date
@@ -162,16 +174,9 @@ class Calendar(goocanvas.Canvas):
         self.draw_events()
 
     def draw_background(self):
-        style = self.get_style()
         x, y, w, h = self.get_bounds()
-        root = self.get_root_item()
-        color = util.color_to_string(style.bg[gtk.STATE_PRELIGHT])
-        if self.bg_rect is not None:
-            self.bg_rect.set_property('width', w)
-            self.bg_rect.set_property('height', h)
-            return
-        self.bg_rect = goocanvas.Rect(parent=root, x=0, y=0, width=w, height=h,
-            stroke_color=color, fill_color=color)
+        self.bg_rect.set_property('width', w)
+        self.bg_rect.set_property('height', h)
 
     def draw_week(self):
         """
@@ -238,7 +243,6 @@ class Calendar(goocanvas.Canvas):
         Draws the currently selected month.
         """
         style = self.get_style()
-        root = self.get_root_item()
         x1, y1, w, h = self.get_bounds()
         day_width = w / 7
         day_height = (h - self.line_height) / 6
@@ -287,12 +291,6 @@ class Calendar(goocanvas.Canvas):
 
                 # Draw a box for the day.
                 box = self.days[weekno * 7 + dayno]
-                if box is None:
-                    box = DayItem(self)
-                    root.add_child(box)
-                    box.connect('button_press_event',
-                                self.on_button_press_event)
-                    self.days[weekno * 7 + dayno] = box
                 box.x = day_width * dayno
                 box.y = y_pos
                 box.width = day_width - 2
@@ -403,7 +401,8 @@ class Calendar(goocanvas.Canvas):
                     day.update()
                 continue
 
-            max_y = max((free_line + 2) * day.line_height + 2, max_y)
+            max_line_height = max(x.line_height for x in days)
+            max_y = max((free_line + 2) * max_line_height + 2, max_y)
             for day in days:
                 day.lines[free_line] = 1
 
