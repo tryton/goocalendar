@@ -31,7 +31,7 @@ class EventItem(goocanvas.Group):
             self.update()
 
     def update(self):
-        if self.event.all_day or self.cal.zoom == self.cal.ZOOM_MONTH:
+        if self.event.all_day or self.cal.zoom == "month":
             self.update_all_day_event()
         else:
             self.update_event()

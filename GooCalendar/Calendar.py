@@ -16,10 +16,9 @@ from TimelineItem import TimelineItem
 
 
 class Calendar(goocanvas.Canvas):
-    ZOOM_MONTH = 1
-    ZOOM_WEEK = 2
+    ZOOM_LEVELS = ["month", "week"]
 
-    def __init__(self, event_store=None, zoom=ZOOM_MONTH):
+    def __init__(self, event_store=None, zoom="month"):
         super(Calendar, self).__init__()
         self.cal = calendar.Calendar(calendar.SUNDAY)
         self.today = time.localtime(time.time())[:3]
@@ -34,6 +33,7 @@ class Calendar(goocanvas.Canvas):
         self._event_added_sigid = None
         self.set_event_store(event_store)
         self.event_items = []
+        assert zoom in self.ZOOM_LEVELS
         self.zoom = zoom
         self.set_bounds(0, 0, 200, 200)
         self.set_flags(gtk.CAN_FOCUS)
@@ -69,9 +69,9 @@ class Calendar(goocanvas.Canvas):
         old_day = self.selected_day
         self.selected_date = new_date[:3]
         page_changed = False
-        if self.zoom == self.ZOOM_MONTH:
+        if self.zoom == "month":
             page_changed = old_date[1] != new_date[1]
-        if self.zoom == self.ZOOM_WEEK:
+        if self.zoom == "week":
             page_changed = True  # Good enough for now...
 
         # This is slow: When the month was changed we need to update
@@ -112,24 +112,23 @@ class Calendar(goocanvas.Canvas):
 
     def select_previous_page(self):
         date = datetime.datetime(*self.selected_date)
-        if self.zoom == self.ZOOM_MONTH:
+        if self.zoom == "month":
             selected_date = util.previous_month(self.cal, date).timetuple()[:3]
-        elif self.zoom == self.ZOOM_WEEK:
+        elif self.zoom == "week":
             selected_date = util.previous_week(self.cal, date).timetuple()[:3]
         self.select_from_tuple(selected_date)
 
     def select_next_page(self):
         date = datetime.datetime(*self.selected_date)
-        if self.zoom == self.ZOOM_MONTH:
+        if self.zoom == "month":
             date = util.next_month(self.cal, date)
-        elif self.zoom == self.ZOOM_WEEK:
+        elif self.zoom == "week":
             date = util.next_week(self.cal, date)
         self.select(date)
 
     def set_zoom(self, level):
-        if level not in [self.ZOOM_MONTH, self.ZOOM_WEEK]:
-            raise Exception('Invalid zoom level')
-        self.zoom = int(level)
+        assert level in self.ZOOM_LEVELS
+        self.zoom = level
         self.update()
 
     def get_selected_date(self):
@@ -167,9 +166,9 @@ class Calendar(goocanvas.Canvas):
         if not self.realized:
             return
         self.draw_background()
-        if self.zoom == self.ZOOM_MONTH:
+        if self.zoom == "month":
             self.draw_month()
-        elif self.zoom == self.ZOOM_WEEK:
+        elif self.zoom == "week":
             self.draw_week()
         self.draw_events()
 
@@ -330,7 +329,7 @@ class Calendar(goocanvas.Canvas):
         end = event.end.timetuple()[:3]
         days = []
         for weekno, week in enumerate(weeks):
-            if self.zoom == self.ZOOM_WEEK:
+            if self.zoom == "week":
                 weekdays = [date.timetuple()[:3] for date in week]
                 if self.selected_date not in weekdays:
                     continue
@@ -368,7 +367,7 @@ class Calendar(goocanvas.Canvas):
         if not self.event_store:
             return
 
-        if self.zoom == self.ZOOM_MONTH:
+        if self.zoom == "month":
             weeks = util.my_monthdatescalendar(self.cal, *self.selected_date)
             dates = []
             for week in weeks:
@@ -388,7 +387,7 @@ class Calendar(goocanvas.Canvas):
         non_all_day_events = []
         for event in events:
             # Handle non-all-day events differently in week mode.
-            if self.zoom == self.ZOOM_WEEK and not event.all_day:
+            if self.zoom == "week" and not event.all_day:
                 non_all_day_events.append(event)
                 continue
 
@@ -450,7 +449,7 @@ class Calendar(goocanvas.Canvas):
                     event_item.type = 'leftright'
                 event_item.update()
 
-        if self.zoom != self.ZOOM_WEEK:
+        if self.zoom != "week":
             return
 
         # Redraw the timeline.
