@@ -4,12 +4,14 @@ import calendar
 
 import goocanvas
 import pango
+import math
 
 
 class DayItem(goocanvas.Group):
     """
     A canvas item representing a day.
     """
+
     def __init__(self, cal, **kwargs):
         super(DayItem, self).__init__()
 
@@ -24,8 +26,6 @@ class DayItem(goocanvas.Group):
         self.date = kwargs.get('date')
         self.type = kwargs.get('type', 'month')
         self.show_indic = False
-        self.line_height = 0
-        self.font_size = 0
         self.lines = {}
         self.n_lines = 0
         self.title_text_color = ""
@@ -37,23 +37,22 @@ class DayItem(goocanvas.Group):
         self.indic = goocanvas.Rect(parent=self)
 
     def update(self):
-        if self.type == 'month':
-            self.font_size = max(self.height / 12, 10)
-        else:
-            self.font_size = max(self.height / 65, 10)
-        text_padding = max(self.font_size / 2.5, 4)
-        self.line_height = self.font_size + 2 * text_padding
+        if not self.date:
+            return
+
+        date_tuple = self.date.timetuple()[:3]
+        week_day = calendar.weekday(*date_tuple)
+        day_name = calendar.day_name[week_day]
+        caption = '%s %s' % (date_tuple[2], day_name)
         style = self.cal.get_style()
         font_descr = style.font_desc.copy()
-        font_descr.set_absolute_size(self.font_size * pango.SCALE)
-        self.font = font_descr.to_string()
-        if self.date:
-            date_tuple = self.date.timetuple()[:3]
-            week_day = calendar.weekday(*date_tuple)
-            day_name = calendar.day_name[week_day]
-            caption = '%s %s' % (date_tuple[2], day_name)
-        else:
-            caption = ""
+        font = font_descr.to_string()
+        pango_size = font_descr.get_size()
+        self.text.set_property('font', font)
+        self.text.set_property('text', caption)
+        logical_height = self.text.get_natural_extents()[1][3]
+        line_height = int(math.ceil(float(logical_height) / pango.SCALE))
+        self.line_height = line_height
 
         # Draw the border.
         self.border.set_property('x', self.x)
@@ -64,24 +63,22 @@ class DayItem(goocanvas.Group):
         self.border.set_property('fill_color', self.border_color)
 
         # Draw the title text.
-        x = self.x + text_padding
-        self.text.set_property('x', x)
-        self.text.set_property('y', self.y + text_padding)
-        self.text.set_property('font', self.font)
-        self.text.set_property('text', caption)
+        padding_left = 2
+        self.text.set_property('x', self.x + padding_left)
+        self.text.set_property('y', self.y)
         self.text.set_property('fill_color', self.title_text_color)
 
         # Print the "body" of the day.
         if self.full_border:
             box_x = self.x + 2
-            box_y = self.y + self.line_height
+            box_y = self.y + line_height
             box_width = max(self.width - 4, 0)
-            box_height = max(self.height - self.line_height - 3, 0)
+            box_height = max(self.height - line_height - 3, 0)
         else:
             box_x = self.x + 1
-            box_y = self.y + self.line_height
+            box_y = self.y + line_height
             box_width = max(self.width - 2, 0)
-            box_height = max(self.height - self.line_height, 0)
+            box_height = max(self.height - line_height, 0)
         self.box.set_property('x', box_x)
         self.box.set_property('y', box_y)
         self.box.set_property('width', box_width)
@@ -89,7 +86,7 @@ class DayItem(goocanvas.Group):
         self.box.set_property('stroke_color', self.body_color)
         self.box.set_property('fill_color', self.body_color)
 
-        self.n_lines = int(box_height / self.line_height)
+        self.n_lines = int(box_height / line_height)
 
         # Show an indicator in the title, if requested.
         if not self.show_indic:
@@ -98,19 +95,19 @@ class DayItem(goocanvas.Group):
 
         self.indic.set_property('visibility', goocanvas.ITEM_VISIBLE)
         self.indic.set_property('x',
-            self.x + self.width - self.line_height / 1.5)
-        self.indic.set_property('y', self.y + self.line_height / 3)
-        self.indic.set_property('width', self.line_height / 3)
-        self.indic.set_property('height', self.line_height / 3)
+            self.x + self.width - line_height / 1.5)
+        self.indic.set_property('y', self.y + line_height / 3)
+        self.indic.set_property('width', line_height / 3)
+        self.indic.set_property('height', line_height / 3)
         self.indic.set_property('stroke_color', self.title_text_color)
         self.indic.set_property('fill_color', self.title_text_color)
 
         # Draw a triangle.
-        x1 = self.x + self.width - self.line_height / 1.5
-        y1 = self.y + self.line_height / 3
-        x2 = x1 + self.line_height / 6
-        y2 = y1 + self.line_height / 3
-        x3 = x1 + self.line_height / 3
+        x1 = self.x + self.width - line_height / 1.5
+        y1 = self.y + line_height / 3
+        x2 = x1 + line_height / 6
+        y2 = y1 + line_height / 3
+        x3 = x1 + line_height / 3
         y3 = y1
         path = 'M%s,%s L%s,%s L%s,%s Z' % (x1, y1, x2, y2, x3, y3)
         self.indic.set_property('clip_path', path)

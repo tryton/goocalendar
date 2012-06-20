@@ -51,12 +51,14 @@ class Calendar(goocanvas.Canvas):
         self.connect('size-allocate', self.on_size_allocate)
         self.connect('key-press-event', self.on_key_press_event)
 
-        # Initialize background and days and add them to canvas
+        # Initialize background, timeline and days and add them to canvas
         root = self.get_root_item()
         style = self.get_style()
         color = util.color_to_string(style.bg[gtk.STATE_PRELIGHT])
         self.bg_rect = goocanvas.Rect(parent=root, x=0, y=0, \
             stroke_color=color, fill_color=color)
+        self.timeline = TimelineItem(self)
+        root.add_child(self.timeline)
         self.days = []
         while len(self.days) < 42: # 6 rows of 7 days
             box = DayItem(self)
@@ -182,6 +184,7 @@ class Calendar(goocanvas.Canvas):
         Draws the currently selected week.
         """
         style = self.get_style()
+        pango_size = style.font_desc.get_size()
         text_color = util.color_to_string(style.fg[gtk.STATE_NORMAL])
         border_color = util.color_to_string(style.mid[gtk.STATE_NORMAL])
         body_color = util.color_to_string(style.light[gtk.STATE_ACTIVE])
@@ -189,8 +192,12 @@ class Calendar(goocanvas.Canvas):
             style.mid[gtk.STATE_SELECTED])
         today_body_color = 'ivory'
         x, y, w, h = self.get_bounds()
-        timeline_w = w / 12
-        day_width = (w - timeline_w) / 7
+        timeline_w = self.timeline.width
+        caption_size = max(len(day_name) for day_name in calendar.day_name)
+        caption_size += 3  # The needed space for the date before the day_name
+        day_width_min = caption_size * pango_size / pango.SCALE
+        day_width_max = (w - timeline_w) / 7
+        day_width = max(day_width_min, day_width_max)
         day_height = h
 
         # Redraw all days.
@@ -243,11 +250,15 @@ class Calendar(goocanvas.Canvas):
         """
         style = self.get_style()
         x1, y1, w, h = self.get_bounds()
-        day_width = w / 7
+        pango_size = style.font_desc.get_size()
+        caption_size = max(len(day_name) for day_name in calendar.day_name)
+        caption_size += 3  # The needed space for the date before the day_name
+        day_width_min = caption_size * pango_size / pango.SCALE
+        day_width_max = w / 7
+        day_width = max(day_width_min, day_width_max)
         day_height = (h - self.line_height) / 6
         text_height = max(day_height / 12, 10)
         font_descr = style.font_desc.copy()
-        font_descr.set_absolute_size(text_height * pango.SCALE)
         text_color = util.color_to_string(style.fg[gtk.STATE_NORMAL])
         inactive_text_color = util.color_to_string(
             style.fg[gtk.STATE_INSENSITIVE])
@@ -401,7 +412,10 @@ class Calendar(goocanvas.Canvas):
                 continue
 
             max_line_height = max(x.line_height for x in days)
-            max_y = max((free_line + 2) * max_line_height + 2, max_y)
+            all_day_events_height = (free_line + 2) * max_line_height
+            all_day_events_height += (free_line + 1) * 2  #2px margin per line
+            all_day_events_height += 1  # 1px padding-top
+            max_y = max(all_day_events_height, max_y)
             for day in days:
                 day.lines[free_line] = 1
 
@@ -415,7 +429,6 @@ class Calendar(goocanvas.Canvas):
                 week_end = week_start + (7 - weekday)
                 week = days[week_start:week_end]
                 weeks.append(week)
-                #print "Week:", weekday, [d.date for d in week], start, end
                 week_start = week_end
 
             for week in weeks:
@@ -427,7 +440,9 @@ class Calendar(goocanvas.Canvas):
                 self.event_items.append(event_item)
                 self.get_root_item().add_child(event_item)
                 event_item.x = day.x
-                event_item.y = day.y + (free_line + 1) * day.line_height + 2
+                event_item.y = day.y + (free_line + 1) * day.line_height
+                event_item.y += free_line * 2  # 2px of margin per line
+                event_item.y += 1  # 1px padding-top
                 event_item.width = (day.width + 2) * len(week)
                 event_item.height = day.line_height
                 week_start = week[0].date
@@ -457,14 +472,10 @@ class Calendar(goocanvas.Canvas):
         text_color = util.color_to_string(style.fg[gtk.STATE_NORMAL])
         border_color = util.color_to_string(style.mid[gtk.STATE_NORMAL])
         body_color = util.color_to_string(style.light[gtk.STATE_ACTIVE])
-        if self.timeline is None:
-            self.timeline = TimelineItem(self)
-            self.get_root_item().add_child(self.timeline)
         self.timeline.set_property('visibility', goocanvas.ITEM_VISIBLE)
         x, y, w, h = self.get_bounds()
         self.timeline.x = x
         self.timeline.y = max_y
-        self.timeline.width = w / 12 - 2
         self.timeline.height = h - max_y - 2
         self.timeline.line_color = body_color
         self.timeline.bg_color = border_color
@@ -515,7 +526,7 @@ class Calendar(goocanvas.Canvas):
                         self.on_event_item_button_press_event)
                     self.event_items.append(event_item)
                     self.get_root_item().add_child(event_item)
-                    minute_height = self.timeline.height / 24 / 60
+                    minute_height = self.timeline.line_height / 60
                     y_off1 = top_offset_mins * minute_height
                     y_off2 = bottom_offset_mins * minute_height
                     column_width = day.width / parallel
@@ -523,7 +534,6 @@ class Calendar(goocanvas.Canvas):
                     event_item.y = max_y + y_off1
                     event_item.width = column_width - 4
                     event_item.height = y_off2
-                    event_item.font_size = day.font_size
                     if event.start < event1_start and event.end > event1_end:
                         event_item.type = 'mid'
                     elif event.start < event1_start:

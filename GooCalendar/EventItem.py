@@ -8,6 +8,7 @@ class EventItem(goocanvas.Group):
     """
     A canvas item representing an event.
     """
+
     def __init__(self, cal, **kwargs):
         super(EventItem, self).__init__()
 
@@ -18,7 +19,6 @@ class EventItem(goocanvas.Group):
         self.height = kwargs.get('height')
         self.bg_color = kwargs.get('bg_color')
         self.text_color = kwargs.get('text_color')
-        self.font_size = kwargs.get('font_size')
         self.event = kwargs.get('event')
         self.type = kwargs.get('type', 'leftright')
 
@@ -39,8 +39,7 @@ class EventItem(goocanvas.Group):
     def update_event(self):
         style = self.cal.get_style()
         font_descr = style.font_desc.copy()
-        if self.font_size is not None:
-            font_descr.set_absolute_size(self.font_size * pango.SCALE)
+        self.width = max(self.width, 0)
         self.font = font_descr.to_string()
         caption = self.event.caption
         the_event_bg_color = self.event.bg_color
@@ -83,29 +82,29 @@ class EventItem(goocanvas.Group):
             self.box2.set_property('fill_color', the_event_bg_color)
 
         # Print the event name into the title box.
-        self.text.set_property('x',          self.x + 6)
-        self.text.set_property('y',          self.y + 2)
-        self.text.set_property('font',       self.font)
-        self.text.set_property('text',       caption)
+        self.text.set_property('x', self.x + 2)
+        self.text.set_property('y', self.y)
+        self.text.set_property('font', self.font)
+        self.text.set_property('text', caption)
         self.text.set_property('fill_color', the_event_text_color)
 
         # Clip the text.
         x2, y2 = self.x + self.width, self.y + self.height,
-        path = 'M%s,%s L%s,%s L%s,%s L%s,%s Z' % (self.x, self.y,
-                                                  self.x, y2,
-                                                  x2,     y2,
-                                                  x2,     self.y)
-        self.text.set_property('clip_path',  path)
+        path = 'M%s,%s L%s,%s L%s,%s L%s,%s Z' % (self.x, self.y, self.x, y2,
+            x2, y2, x2, self.y)
+        self.text.set_property('clip_path', path)
 
     def update_all_day_event(self):
-        text_padding = max(self.height / 4.5, 4)
-        text_height = max(self.height - 2 * text_padding, 10)
+        self.width = max(self.width, 0)
         style = self.cal.get_style()
         font_descr = style.font_desc.copy()
-        font_descr.set_absolute_size(text_height * pango.SCALE)
         self.font = font_descr.to_string()
         caption = self.event.caption
         the_event_bg_color = self.event.bg_color
+        self.text.set_property('font', self.font)
+        self.text.set_property('text', caption)
+        logical_height = self.text.get_natural_extents()[1][3]
+        self.height = logical_height / pango.SCALE
 
         # Choose text color.
         if self.event.text_color is None:
@@ -131,7 +130,7 @@ class EventItem(goocanvas.Group):
             self.box.set_property('x', self.x)
             self.box.set_property('y', self.y)
             self.box.set_property('width', self.width)
-            self.box.set_property('height', self.height - 4)
+            self.box.set_property('height', self.height)
             self.box.set_property('radius_x', radius)
             self.box.set_property('radius_y', radius)
             self.box.set_property('stroke_color', the_event_bg_color)
@@ -140,19 +139,17 @@ class EventItem(goocanvas.Group):
             # Box 2 hides the rounded corners of box1.
             self.box2.set_property('y', self.y)
             self.box2.set_property('width', radius)
-            self.box2.set_property('height', self.height - 4)
+            self.box2.set_property('height', self.height)
             self.box2.set_property('stroke_color', the_event_bg_color)
             self.box2.set_property('fill_color', the_event_bg_color)
 
         # Print the event name into the title box.
-        self.text.set_property('x', self.x + 6)
-        self.text.set_property('y', self.y + 2)
-        self.text.set_property('font', self.font)
-        self.text.set_property('text', caption)
+        self.text.set_property('x', self.x + 2)
+        self.text.set_property('y', self.y)
         self.text.set_property('fill_color', the_event_text_color)
 
         # Clip the text.
         x2, y2 = self.x + self.width, self.y + self.height,
         path = 'M%s,%s L%s,%s L%s,%s L%s,%s Z' % (
             self.x, self.y, self.x, y2, x2, y2, x2, self.y)
-        self.text.set_property('clip_path',  path)
+        self.text.set_property('clip_path', path)
