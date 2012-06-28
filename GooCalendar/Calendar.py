@@ -206,6 +206,10 @@ class Calendar(goocanvas.Canvas):
         day_width_max = (w - timeline_w) / 7
         day_width = max(day_width_min, day_width_max)
         day_height = h
+        width, height = self.get_size_request()
+        new_width = int(timeline_w + 7 * day_width)
+        if (width != new_width and day_width_min >= day_width_max):
+            self.set_size_request(new_width, height)  # Minimum widget size
 
         # Redraw all days.
         weeks = util.my_monthdatescalendar(self.cal, *self.selected_date)
@@ -326,6 +330,12 @@ class Calendar(goocanvas.Canvas):
                     self.selected_day = box
 
             y_pos += day_height
+        
+        width = self.get_size_request()
+        new_width = int(7 * day_width)
+        new_height = int(14 * box.line_height)
+        if (width != new_width and day_width == day_width_min):
+            self.set_size_request(new_width, new_height)
 
     def _get_day_item(self, find_date):
         weeks = util.my_monthdatescalendar(self.cal, *find_date.timetuple())
@@ -488,6 +498,12 @@ class Calendar(goocanvas.Canvas):
         self.timeline.bg_color = border_color
         self.timeline.text_color = text_color
         self.timeline.update()
+        width, height = self.get_size_request()
+        min_line_height = self.timeline.min_line_height
+        line_height = self.timeline.line_height
+        new_height = int(max_y + 24 * min_line_height)
+        if (height != new_height):
+            self.set_size_request(width, new_height)
 
         # Draw non-all-day events.
         for date in dates:
@@ -533,7 +549,7 @@ class Calendar(goocanvas.Canvas):
                         self.on_event_item_button_press_event)
                     self.event_items.append(event_item)
                     self.get_root_item().add_child(event_item)
-                    minute_height = self.timeline.line_height / 60
+                    minute_height = line_height / 60.0
                     y_off1 = top_offset_mins * minute_height
                     y_off2 = bottom_offset_mins * minute_height
                     column_width = day.width / parallel

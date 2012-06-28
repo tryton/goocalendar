@@ -51,27 +51,31 @@ class TimelineItem(goocanvas.Group):
         return self._width
 
     @property
-    def line_height(self):
+    def min_line_height(self):
         style = self.cal.get_style()
         font_descr = style.font_desc.copy()
         pango_size = font_descr.get_size()
         logical_height = 0
-        ink_padding_top = 0
+        self.ink_padding_top = 0
         for n in range(24):
             natural_extents = self.timeline_text[n].get_natural_extents()
             logical_rect = natural_extents[1]
             logical_height = max(logical_height, logical_rect[3])
             ink_rect = natural_extents[0]
-            ink_padding_top = max(ink_padding_top, ink_rect[0])
+            self.ink_padding_top = max(self.ink_padding_top, ink_rect[0])
         line_height = int(math.ceil(float(logical_height) / pango.SCALE))
+        return line_height
         
-        # If we have more vertical space, use it and center the text
+    @property
+    def line_height(self):
         self.padding_top = 0
+        line_height = self.min_line_height
         if line_height < self.height / 24:
             line_height = self.height / 24
             pango_size = self.cal.get_style().font_desc.get_size()
             padding_top = (line_height - pango_size / pango.SCALE) / 2
-            padding_top -= int(math.ceil(float(ink_padding_top) / pango.SCALE))
+            padding_top -= int(math.ceil(float(self.ink_padding_top) /
+                pango.SCALE))
             self.padding_top = padding_top
         return line_height
    
