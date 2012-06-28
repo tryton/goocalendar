@@ -1,6 +1,7 @@
 #This file is part of GooCalendar.  The COPYRIGHT file at the top level of
 #this repository contains the full copyright notices and license terms.
 import datetime
+import calendar
 
 
 def my_weekdatescalendar(cal, *date):
@@ -26,6 +27,13 @@ def my_monthdatescalendar(cal, *args):
             week.append(last_day)
         weeks.append(week)
     return weeks
+
+
+def first_day_of_week(cal, date):
+    firstweekday = cal.firstweekday
+    year, month, day = date[:3]
+    day_shift = (calendar.weekday(year, month, day) + 7 - firstweekday) % 7
+    return datetime.datetime(year, month, day) - datetime.timedelta(day_shift)
 
 
 def previous_month(cal, date):

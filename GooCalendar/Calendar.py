@@ -72,15 +72,18 @@ class Calendar(goocanvas.Canvas):
         self.selected_date = new_date[:3]
         page_changed = False
         if self.zoom == "month":
-            page_changed = old_date[1] != new_date[1]
-        if self.zoom == "week":
-            page_changed = True  # Good enough for now...
+            page_changed = old_date[:2] != new_date[:2]
+        elif self.zoom == "week":
+            old_first_weekday = util.first_day_of_week(self.cal, old_date)
+            new_first_weekday = util.first_day_of_week(self.cal, new_date)
+            page_changed = old_first_weekday != new_first_weekday
 
         # This is slow: When the month was changed we need to update
         # the entire canvas.
         if old_day is None or page_changed:
             self.update()
             self.emit('day-selected', self.get_selected_date())
+            self.emit('page-changed', self.get_selected_date())
             return
 
         # This is fast: Update only the old and newly selected days.
@@ -107,7 +110,8 @@ class Calendar(goocanvas.Canvas):
         old_day.update()
         new_day.update()
         self.selected_day = new_day
-        self.emit('day-selected', self.get_selected_date())
+        if old_day != new_day:
+            self.emit('day-selected', self.get_selected_date())
 
     def select(self, new_time):
         self.select_from_tuple(new_time.timetuple())
@@ -129,9 +133,12 @@ class Calendar(goocanvas.Canvas):
         self.select(date)
 
     def set_zoom(self, level):
+        if level == self.zoom:
+            return
         assert level in self.ZOOM_LEVELS
         self.zoom = level
         self.update()
+        self.emit('zoom_changed', self.zoom)
 
     def get_selected_date(self):
         return datetime.datetime(*self.selected_date)
@@ -574,6 +581,16 @@ gobject.signal_new('event-clicked',
     gobject.TYPE_NONE,
     (gobject.TYPE_PYOBJECT,))
 gobject.signal_new('day-selected',
+    Calendar,
+    gobject.SIGNAL_RUN_FIRST,
+    gobject.TYPE_NONE,
+    (gobject.TYPE_PYOBJECT,))
+gobject.signal_new('zoom_changed',
+    Calendar,
+    gobject.SIGNAL_RUN_FIRST,
+    gobject.TYPE_NONE,
+    (gobject.TYPE_PYOBJECT,))
+gobject.signal_new('page_changed',
     Calendar,
     gobject.SIGNAL_RUN_FIRST,
     gobject.TYPE_NONE,
