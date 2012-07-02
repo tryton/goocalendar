@@ -12,8 +12,9 @@ class EventStore(gobject.GObject):
             (gobject.TYPE_PYOBJECT,)),
         'event-added': (gobject.SIGNAL_RUN_FIRST,
             gobject.TYPE_NONE,
-            (gobject.TYPE_PYOBJECT,))
-        }
+            (gobject.TYPE_PYOBJECT,)),
+        'events-cleared': (gobject.SIGNAL_RUN_FIRST,
+            gobject.TYPE_NONE, ())}
 
     def __init__(self):
         super(EventStore, self).__init__()
@@ -28,12 +29,17 @@ class EventStore(gobject.GObject):
         self.emit('event-removed', event)
 
     def add(self, event):
-        assert event    is not None
+        assert event is not None
         assert event.id is None
         self.events[self.next_event_id] = event
         event.id = self.next_event_id
         self.next_event_id += 1
         self.emit('event-added', event)
+
+    def clear(self):
+        self.events.clear()
+        self.next_event_id = 0
+        self.emit('events-cleared')
 
     def get_events(self, start, end):
         """

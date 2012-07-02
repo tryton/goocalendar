@@ -31,6 +31,7 @@ class Calendar(goocanvas.Canvas):
         self.event_store = None
         self._event_removed_sigid = None
         self._event_added_sigid = None
+        self._events_cleared_sigid = None
         self.set_event_store(event_store)
         self.event_items = []
         assert zoom in self.ZOOM_LEVELS
@@ -148,6 +149,7 @@ class Calendar(goocanvas.Canvas):
         if self.event_store:
             self.event_store.disconnect(self._event_removed_sigid)
             self.event_store.disconnect(self._event_added_sigid)
+            self.event_store_disconnect(self._events_cleared_sigid)
 
         # Set and connect new event_store
         self.event_store = event_store
@@ -158,6 +160,8 @@ class Calendar(goocanvas.Canvas):
             self.on_event_store_event_removed)
         self._event_added_sigid = self.event_store.connect('event-added',
             self.on_event_store_event_added)
+        self._events_cleared_sigid = self.event_store.connect('events-cleared',
+            self.on_event_store_events_cleared)
 
     def on_realize(self, *args):
         self.realized = True
@@ -330,7 +334,7 @@ class Calendar(goocanvas.Canvas):
                     self.selected_day = box
 
             y_pos += day_height
-        
+
         width = self.get_size_request()
         new_width = int(7 * day_width)
         new_height = int(14 * box.line_height)
@@ -571,6 +575,9 @@ class Calendar(goocanvas.Canvas):
         self.update()
 
     def on_event_store_event_added(self, store, event):
+        self.update()
+
+    def on_event_store_events_cleared(self, store):
         self.update()
 
     def on_key_press_event(self, widget, event):
