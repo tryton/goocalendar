@@ -335,10 +335,11 @@ class Calendar(goocanvas.Canvas):
 
             y_pos += day_height
 
-        width = self.get_size_request()
+        width, height = self.get_size_request()
         new_width = int(7 * day_width)
         new_height = int(14 * box.line_height)
-        if (width != new_width and day_width == day_width_min):
+        if ((width != new_width and day_width == day_width_min)
+            or new_height != height):
             self.set_size_request(new_width, new_height)
 
     def _get_day_item(self, find_date):

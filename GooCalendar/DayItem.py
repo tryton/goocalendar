@@ -86,7 +86,8 @@ class DayItem(goocanvas.Group):
         self.box.set_property('stroke_color', self.body_color)
         self.box.set_property('fill_color', self.body_color)
 
-        self.n_lines = int(box_height / line_height)
+        line_height_and_margin = line_height + 2  # 2px of margin per line
+        self.n_lines = int(box_height / line_height_and_margin)
 
         # Show an indicator in the title, if requested.
         if not self.show_indic:
