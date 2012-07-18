@@ -13,7 +13,7 @@ def on_event_clicked(calendar, event, event_store):
 
 
 def on_day_selected(calendar, day):
-    print "Day %s was clicked" % day
+    print "Day %s was selected" % day
 
 window = gtk.Window()
 event_store = GooCalendar.EventStore()

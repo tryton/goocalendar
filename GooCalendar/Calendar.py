@@ -64,7 +64,8 @@ class Calendar(goocanvas.Canvas):
         while len(self.days) < 42: # 6 rows of 7 days
             box = DayItem(self)
             root.add_child(box)
-            box.connect('button_press_event', self.on_button_press_event)
+            box.connect('button_press_event',
+                self.on_day_item_button_press_event)
             self.days.append(box)
 
     def select_from_tuple(self, new_date):
@@ -596,10 +597,16 @@ class Calendar(goocanvas.Canvas):
     def on_event_item_button_press_event(self, item, rect, event):
         self.emit('event-clicked', item.event)
 
-    def on_button_press_event(self, day, widget2, event):
+    def on_day_item_button_press_event(self, day, widget2, event):
+        self.emit('day-clicked', day.date)
         self.select(day.date)
 
 gobject.signal_new('event-clicked',
+    Calendar,
+    gobject.SIGNAL_RUN_FIRST,
+    gobject.TYPE_NONE,
+    (gobject.TYPE_PYOBJECT,))
+gobject.signal_new('day-clicked',
     Calendar,
     gobject.SIGNAL_RUN_FIRST,
     gobject.TYPE_NONE,
