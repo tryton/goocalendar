@@ -9,7 +9,6 @@ import GooCalendar
 
 def on_event_clicked(calendar, event, event_store):
     print "Event %s was clicked" % event.caption
-    event_store.remove(event)
 
 
 def on_day_selected(calendar, day):
@@ -18,6 +17,7 @@ def on_day_selected(calendar, day):
 window = gtk.Window()
 event_store = GooCalendar.EventStore()
 calendar = GooCalendar.Calendar(event_store)
+calendar.set_has_tooltip(True)
 
 # Normal events.
 event = GooCalendar.Event('Event number 1',

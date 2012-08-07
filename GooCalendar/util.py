@@ -2,6 +2,7 @@
 #this repository contains the full copyright notices and license terms.
 import datetime
 import calendar
+import locale
 
 
 def my_weekdatescalendar(cal, *date):
@@ -78,16 +79,16 @@ def time_delta(datetime1, datetime2):
 
 
 def event_days(event1, event2):
-    return time_delta(event1.start, event1.end).days \
-         - time_delta(event2.start, event2.end).days
+    return (time_delta(event1.start, event1.end).days
+         - time_delta(event2.start, event2.end).days)
 
 
 def event_intersects(event, start, end=None):
     if end is None:
         end = start
-    return (event.start >= start and event.start < end) \
-        or (event.end > start and event.end <= end) \
-        or (event.start < start and event.end > end)
+    return ((event.start >= start and event.start < end)
+        or (event.end > start and event.end <= end)
+        or (event.start < start and event.end > end))
 
 
 def get_intersection_list(list, start, end):
@@ -126,6 +127,33 @@ def count_parallel_events(list, start, end):
                 n = count_parallel_events(list[f:], new_start, new_end)
                 parallel = max(parallel, n + 1)
     return parallel
+
+
+def next_level(cur_time, min_per_level):
+    """
+    Given a datetime and the duration (in minutes) of time levels,
+    return the datetime of the next level
+    """
+    delta_per_level = datetime.timedelta(minutes=min_per_level)
+    delta_min = cur_time.minute % min_per_level
+    delta_sec = cur_time.second
+    cur_delta = datetime.timedelta(minutes=delta_min, seconds=delta_sec)
+    next_level = cur_time - cur_delta + delta_per_level
+    return next_level
+
+
+def prev_level(cur_time, min_per_level):
+    """
+    Given a datetime and the duration (in minutes) of time levels,
+    return the datetime of the previous level
+    """
+    delta_per_level = datetime.timedelta(minutes=min_per_level)
+    delta_min = cur_time.minute % min_per_level
+    cur_delta = datetime.timedelta(minutes=delta_min)
+    prev_level = cur_time - cur_delta
+    if prev_level == cur_time:
+        prev_level -= delta_per_level
+    return prev_level
 
 
 def color_to_string(color):

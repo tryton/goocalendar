@@ -20,3 +20,7 @@ class Event(object):
         if end is None:
             self.all_day = True
             self.end = start
+
+    @property
+    def multidays(self):
+        return (not self.end or (self.end - self.start).days > 0)

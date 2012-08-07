@@ -3,6 +3,8 @@
 import goocanvas
 import pango
 import math
+import datetime
+import util
 
 
 class TimelineItem(goocanvas.Group):
@@ -19,13 +21,13 @@ class TimelineItem(goocanvas.Group):
         self.line_color = kwargs.get('line_color')
         self.bg_color = kwargs.get('bg_color')
         self.text_color = kwargs.get('text_color')
+        self.time_format = kwargs.get('time_format')
 
         # Create canvas items.
         self.timeline_rect = {}
         self.timeline_text = {}
         for n in range(24):
-            hour = str(n).zfill(2)
-            caption = hour + ':00'
+            caption = datetime.time(n).strftime(self.time_format)
             self.timeline_rect[n] = goocanvas.Rect(parent=self)
             self.timeline_text[n] = goocanvas.Text(parent=self, text=caption)
 
@@ -65,7 +67,7 @@ class TimelineItem(goocanvas.Group):
             self.ink_padding_top = max(self.ink_padding_top, ink_rect[0])
         line_height = int(math.ceil(float(logical_height) / pango.SCALE))
         return line_height
-        
+
     @property
     def line_height(self):
         self.padding_top = 0
@@ -78,10 +80,10 @@ class TimelineItem(goocanvas.Group):
                 pango.SCALE))
             self.padding_top = padding_top
         return line_height
-   
+
     def update(self):
         line_height = self.line_height
-        
+
         # Draw the timeline.
         for n in range(24):
             rect = self.timeline_rect[n]
