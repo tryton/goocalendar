@@ -87,9 +87,9 @@ class EventItem(goocanvas.Group):
         style = self.cal.get_style()
         font_descr = style.font_desc.copy()
         self.font = font_descr.to_string()
-        starttime = self.event.start.strftime(self.time_format)
-        endtime = self.event.end.strftime(self.time_format)
         if self.event.multidays and not self.event.all_day:
+            starttime = self.event.start.strftime(self.time_format)
+            endtime = self.event.end.strftime(self.time_format)
             caption = '%s - %s %s' % (starttime, endtime, self.event.caption)
         else:
             caption = self.event.caption

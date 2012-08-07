@@ -79,8 +79,10 @@ def time_delta(datetime1, datetime2):
 
 
 def event_days(event1, event2):
-    return (time_delta(event1.start, event1.end).days
-         - time_delta(event2.start, event2.end).days)
+    end1 = event1.end if event1.end else event1.start
+    end2 = event2.end if event2.end else event2.start
+    return (time_delta(event1.start, end1).days
+         - time_delta(event2.start, end2).days)
 
 
 def event_intersects(event, start, end=None):

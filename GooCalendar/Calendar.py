@@ -369,7 +369,8 @@ class Calendar(goocanvas.Canvas):
         """
         weeks = util.my_monthdatescalendar(self.cal, *self.selected_date)
         start = event.start.timetuple()[:3]
-        end = event.end.timetuple()[:3]
+        end = event.end if event.end else event.start
+        end = end.timetuple()[:3]
         days = []
         for weekno, week in enumerate(weeks):
             if self.zoom == "week":
@@ -384,7 +385,7 @@ class Calendar(goocanvas.Canvas):
                     return days
         if len(days) > 0:
             return days
-        raise Exception('Days not found: %s %s' % (event.start, event.end))
+        raise Exception('Days not found: %s %s' % (event.start, end))
 
     def _find_free_line(self, days):
         for line in range(days[0].n_lines):
@@ -487,14 +488,15 @@ class Calendar(goocanvas.Canvas):
                 event_item.height = day.line_height
                 week_start = week[0].date
                 week_end = week[-1].date
+                end = event.end if event.end else event.start
                 if (event.start.date() < week_start
-                        and event.end.date() > week_end):
+                        and end.date() > week_end):
                     event_item.type = 'mid'
                     event_item.width -= 3
                 elif event.start.date() < week_start:
                     event_item.type = 'right'
                     event_item.width -= 4
-                elif event.end.date() > week_end:
+                elif end.date() > week_end:
                     event_item.type = 'left'
                     event_item.x += 2
                     event_item.width -= 4
@@ -674,7 +676,8 @@ class Calendar(goocanvas.Canvas):
                 daysdelta = self.drag_start_date - event_date
                 event_item.x += daysdelta.days * self.day_width
                 event_item.event.start += daysdelta
-                event_item.event.end += daysdelta
+                if event_item.event.end:
+                    event_item.event.end += daysdelta
         event_item.update()
         self.emit('event-clicked', event_item.event)
 
@@ -683,7 +686,8 @@ class Calendar(goocanvas.Canvas):
         cur_pointed_date = self.get_cur_pointed_date(event.x, event.y)
         daysdelta = cur_pointed_date - self.drag_start_date
         event_item.event.start += daysdelta
-        event_item.event.end += daysdelta
+        if event_item.event.end:
+            event_item.event.end += daysdelta
         event_item.transparent = False
 
         # Drag and drop is over
@@ -747,7 +751,8 @@ class Calendar(goocanvas.Canvas):
             # Apply event item vertical translation
             timedelta = new_time - old_time
             event_item.event.start += timedelta
-            event_item.event.end += timedelta
+            if event_item.event.end:
+                event_item.event.end += timedelta
             pxdelta = (timedelta.total_seconds() / 60 * self.minute_height)
             event_item.y += pxdelta
             event_item.update()

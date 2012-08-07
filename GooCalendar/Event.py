@@ -19,7 +19,6 @@ class Event(object):
         self.bg_color = kwargs.get('bg_color', 'orangered')
         if end is None:
             self.all_day = True
-            self.end = start
 
     @property
     def multidays(self):
