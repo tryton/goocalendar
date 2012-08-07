@@ -10,9 +10,16 @@ import GooCalendar
 def on_event_clicked(calendar, event, event_store):
     print "Event %s was clicked" % event.caption
 
-
 def on_day_selected(calendar, day):
     print "Day %s was selected" % day
+
+def on_key_pressed(widget, event):
+    if (event.state & gtk.gdk.CONTROL_MASK and
+            event.keyval == gtk.gdk.keyval_from_name('l')):
+        if widget.zoom == 'week':
+            widget.set_zoom('month')
+        else:
+            widget.set_zoom('week')
 
 window = gtk.Window()
 event_store = GooCalendar.EventStore()
@@ -72,4 +79,5 @@ window.show_all()
 window.connect('delete-event', gtk.main_quit)
 calendar.connect('event-clicked', on_event_clicked, event_store)
 calendar.connect('day-selected',  on_day_selected)
+calendar.connect('key-press-event', on_key_pressed)
 gtk.main()

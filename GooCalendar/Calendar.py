@@ -617,7 +617,6 @@ class Calendar(goocanvas.Canvas):
             self.select(date - datetime.timedelta(1))
         elif event.keyval == gtk.gdk.keyval_from_name('Right'):
             self.select(date + datetime.timedelta(1))
-        return True
 
     def on_day_item_button_press_event(self, day, widget2, event):
         self.emit('day-clicked', day.date)
