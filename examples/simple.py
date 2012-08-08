@@ -10,8 +10,10 @@ import GooCalendar
 def on_event_clicked(calendar, event, event_store):
     print "Event %s was clicked" % event.caption
 
+
 def on_day_selected(calendar, day):
     print "Day %s was selected" % day
+
 
 def on_key_pressed(widget, event):
     if (event.state & gtk.gdk.CONTROL_MASK and
