@@ -422,7 +422,8 @@ class Calendar(goocanvas.Canvas):
 
         # Retrieve a list of all events in the current time span,
         # and sort them by event length.
-        onedaydelta = datetime.timedelta(days=1)
+        onedaydelta = (datetime.timedelta(days=1)
+            - datetime.timedelta(microseconds=1))
         start = datetime.datetime(*dates[0].timetuple()[:3])
         end = datetime.datetime(*dates[-1].timetuple()[:3]) + onedaydelta
         events = self.event_store.get_events(start, end)
