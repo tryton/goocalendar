@@ -4,7 +4,6 @@ import goocanvas
 import pango
 import math
 import datetime
-import util
 
 
 class TimelineItem(goocanvas.Group):
@@ -22,6 +21,7 @@ class TimelineItem(goocanvas.Group):
         self.bg_color = kwargs.get('bg_color')
         self.text_color = kwargs.get('text_color')
         self.time_format = kwargs.get('time_format')
+        self.width = 0
 
         # Create canvas items.
         self.timeline_rect = {}
@@ -35,28 +35,7 @@ class TimelineItem(goocanvas.Group):
             self.update()
 
     @property
-    def width(self):
-        style = self.cal.get_style()
-        font = style.font_desc
-
-        # Find the maximal padding and width of texts
-        ink_padding_left = 0
-        ink_max_width = 0
-        for n in range(24):
-            self.timeline_text[n].set_property('font', font)
-            natural_extents = self.timeline_text[n].get_natural_extents()
-            ink_rect = natural_extents[0]
-            ink_padding_left = max(ink_padding_left, ink_rect[0])
-            ink_max_width = max(ink_max_width, ink_rect[2])
-        self._width = int(math.ceil(float(ink_padding_left + ink_max_width)
-            / pango.SCALE))
-        return self._width
-
-    @property
     def min_line_height(self):
-        style = self.cal.get_style()
-        font_descr = style.font_desc.copy()
-        pango_size = font_descr.get_size()
         logical_height = 0
         self.ink_padding_top = 0
         for n in range(24):
@@ -81,7 +60,22 @@ class TimelineItem(goocanvas.Group):
             self.padding_top = padding_top
         return line_height
 
+    def _compute_width(self):
+        style = self.cal.get_style()
+        font = style.font_desc
+        ink_padding_left = 0
+        ink_max_width = 0
+        for n in range(24):
+            self.timeline_text[n].set_property('font', font)
+            natural_extents = self.timeline_text[n].get_natural_extents()
+            ink_rect = natural_extents[0]
+            ink_padding_left = max(ink_padding_left, ink_rect[0])
+            ink_max_width = max(ink_max_width, ink_rect[2])
+        self.width = int(math.ceil(float(ink_padding_left + ink_max_width)
+            / pango.SCALE))
+
     def update(self):
+        self._compute_width()
         line_height = self.line_height
 
         # Draw the timeline.

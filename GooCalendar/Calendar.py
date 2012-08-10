@@ -17,7 +17,7 @@ from TimelineItem import TimelineItem
 
 class Calendar(goocanvas.Canvas):
     ZOOM_LEVELS = ["month", "week"]
-    MIN_PER_LEVEL = 15  # Number of minutes per graduation for drag and dropping
+    MIN_PER_LEVEL = 15  # Number of minutes per graduation for drag and drop
 
     def __init__(self, event_store=None, zoom="month", time_format="%H:%M"):
         super(Calendar, self).__init__()
@@ -268,6 +268,7 @@ class Calendar(goocanvas.Canvas):
 
                 if selected:
                     self.selected_day = box
+                    self.line_height = self.selected_day.line_height
 
     def draw_month(self):
         """
@@ -281,9 +282,7 @@ class Calendar(goocanvas.Canvas):
         day_width_min = caption_size * pango_size / pango.SCALE
         day_width_max = w / 7
         self.day_width = max(day_width_min, day_width_max)
-        self.day_height = (h - self.line_height) / 6
-        text_height = max(self.day_height / 12, 10)
-        font_descr = style.font_desc.copy()
+        self.day_height = h / 6
         text_color = util.color_to_string(style.fg[gtk.STATE_NORMAL])
         inactive_text_color = util.color_to_string(
             style.fg[gtk.STATE_INSENSITIVE])
@@ -300,7 +299,7 @@ class Calendar(goocanvas.Canvas):
             self.timeline.set_property('visibility', goocanvas.ITEM_INVISIBLE)
 
         # Draw the grid.
-        y_pos = self.line_height
+        y_pos = 0
         weeks = util.my_monthdatescalendar(self.cal, *self.selected_date)
         for weekno, week in enumerate(weeks):
             for dayno, date in enumerate(week):
@@ -342,6 +341,7 @@ class Calendar(goocanvas.Canvas):
 
                 if selected:
                     self.selected_day = box
+                    self.line_height = self.selected_day.line_height
 
             y_pos += self.day_height
 
@@ -371,6 +371,7 @@ class Calendar(goocanvas.Canvas):
         start = event.start.timetuple()[:3]
         end = event.end if event.end else event.start
         end = end.timetuple()[:3]
+        assert start <= end
         days = []
         for weekno, week in enumerate(weeks):
             if self.zoom == "week":
@@ -431,6 +432,7 @@ class Calendar(goocanvas.Canvas):
         max_y = self.selected_day.line_height
         non_all_day_events = []
         for event in events:
+            event.event_items = []
             # Handle non-all-day events differently in week mode.
             if (self.zoom == "week" and not event.all_day
                     and not event.multidays):
@@ -471,6 +473,9 @@ class Calendar(goocanvas.Canvas):
                 day = week[dayno]
                 event_item = EventItem(self, event=event,
                     time_format=self.time_format)
+                if len(event.event_items):
+                    event_item.no_caption = True
+                event.event_items.append(event_item)
                 event_item.connect('button_press_event',
                     self.on_event_item_button_press_event)
                 event_item.connect('button_release_event',
@@ -538,6 +543,7 @@ class Calendar(goocanvas.Canvas):
             day = self._get_day_item(date)
             day_events = util.get_intersection_list(non_all_day_events,
                 date_start, date_end)
+            day_events.sort()
             columns = []
             column = 0
 
@@ -572,6 +578,9 @@ class Calendar(goocanvas.Canvas):
 
                     event_item = EventItem(self, event=event,
                         time_format=self.time_format)
+                    if len(event.event_items):
+                        event_item.no_caption = True
+                    event.event_items.append(event_item)
                     event_item.connect('button_press_event',
                         self.on_event_item_button_press_event)
                     event_item.connect('button_release_event',
@@ -587,6 +596,8 @@ class Calendar(goocanvas.Canvas):
                     event_item.x = day.x + (columnno * column_width) + 2
                     event_item.y = max_y + y_off1
                     event_item.width = column_width - 4
+                    if columnno != (parallel - 1):
+                        event_item.width += column_width / 1.2
                     event_item.height = y_off2
                     if event.start < event1_start and event.end > event1_end:
                         event_item.type = 'mid'
@@ -629,11 +640,8 @@ class Calendar(goocanvas.Canvas):
         # Get current week
         weeks = util.my_monthdatescalendar(self.cal, *self.selected_date)
         if self.zoom == 'week':
-            for weekno, week in enumerate(weeks):
-                weekdays = [date.timetuple()[:3] for date in week]
-                if self.selected_date[:3] in weekdays:
-                    cur_week = week
-                    break
+            cur_week, = (week for week in weeks for date in week
+                if self.selected_date[:3] == date.timetuple()[:3])
         elif self.zoom == 'month':
             max_height = 6 * self.day_height
             if y < 0:
@@ -666,27 +674,71 @@ class Calendar(goocanvas.Canvas):
         event_item.raise_(None)
         event_item.transparent = True
 
+        event_item.width = self.day_width - 6  # Biggest event width
+        event_date = event_item.event.start.date()
+        daysdelta = self.drag_start_date - event_date
         if self.zoom == 'week':
-            event_item.width = self.day_width - 6  # Biggest event width
             event_item.x = event_item.left_border
-            event_date = event_item.event.start.date()
             if ((event_item.event.all_day or event_item.event.multidays)
                 and self.drag_start_date != event_date):
-                daysdelta = self.drag_start_date - event_date
                 event_item.x += daysdelta.days * self.day_width
                 event_item.event.start += daysdelta
                 if event_item.event.end:
                     event_item.event.end += daysdelta
+            else:
+                for item in event_item.event.event_items:
+                    if item != event_item:
+                        self.get_root_item().remove_child(item)
+                        self.event_items.remove(item)
+
+                event_item.height = 2 * self.line_height
+                day_no = int((event.x - self.timeline.width) / self.day_width)
+                day_off = day_no * self.day_width + 2
+                event_item.x = self.timeline.width + day_off
+                if (event_item.no_caption or event.y < event_item.y or
+                    event.y > (event_item.y + event_item.height)):
+                    # click was not performed inside the new day item
+                    level_height = self.minute_height * self.MIN_PER_LEVEL
+                    cur_level = int((event.y - self.timeline.y) / level_height)
+                    nb_levels_per_hour = 60 / self.MIN_PER_LEVEL
+                    cur_level -= nb_levels_per_hour  # click is in the middle
+                    if cur_level < 0:
+                        cur_level = 0
+                    event_item.y = self.timeline.y + cur_level * level_height
+                    nb_minutes = cur_level * self.MIN_PER_LEVEL
+                    minutes = nb_minutes % 60
+                    hours = nb_minutes / 60
+                    old_start = event_item.event.start
+                    new_start = datetime.datetime.combine(self.drag_start_date,
+                        datetime.time(hours, minutes))
+                    event_item.event.start = new_start
+                    delta = new_start - old_start
+                    if event_item.event.end:
+                        event_item.event.end += delta
+                event_item.no_caption = False
+        elif self.zoom == 'month':
+            for item in event_item.event.event_items:
+                if item != event_item:
+                    self.get_root_item().remove_child(item)
+                    self.event_items.remove(item)
+                else:
+                    event_item.event.start += daysdelta
+                    if event_item.event.end:
+                        event_item.event.end += daysdelta
+                    weekno = int(event.y / self.day_height)
+                    day_no = int(event.x / self.day_width)
+                    event_item.y = weekno * self.day_height
+                    event_item.y += int(self.line_height) + 1  # padding-top
+                    event_item.x = day_no * self.day_width + 2  # padding-left
+                    item_height = self.line_height + 2  # 2px between items
+                    while event_item.y < event.y:
+                        event_item.y += item_height
+                    event_item.y -= item_height
+                    event_item.no_caption = False
         event_item.update()
         self.emit('event-clicked', event_item.event)
 
     def on_event_item_button_release(self, event_item, rect, event):
-        # Compute and apply days delta
-        cur_pointed_date = self.get_cur_pointed_date(event.x, event.y)
-        daysdelta = cur_pointed_date - self.drag_start_date
-        event_item.event.start += daysdelta
-        if event_item.event.end:
-            event_item.event.end += daysdelta
         event_item.transparent = False
 
         # Drag and drop is over
@@ -696,36 +748,39 @@ class Calendar(goocanvas.Canvas):
         self.drag_start_date = None
         self.drag_date = None
         self.set_has_tooltip(True)
-        self.emit('event-released', event_item, event)
         self.draw_events()
+        self.emit('event-released', event_item.event)
 
     def on_event_item_motion_notified(self, event_item, rect, event):
         if self.drag_x and self.drag_y:
             # We are currently drag and dropping this event item
-            diff_x = event.x - self.drag_x
             diff_y = event.y - self.drag_y
             self.drag_x = event.x
             self.drag_y = event.y
             self.drag_height += diff_y
 
             cur_pointed_date = self.get_cur_pointed_date(event.x, event.y)
+            daysdelta = cur_pointed_date - self.drag_date
             if self.zoom == 'month':
-                event_item.y += diff_y
                 if cur_pointed_date != self.drag_date:
-                    daysdelta = cur_pointed_date - self.drag_date
+                    event_item.event.start += daysdelta
+                    if event_item.event.end:
+                        event_item.event.end += daysdelta
                     nb_lines = int(round(float(daysdelta.days) / 7))
                     nb_columns = daysdelta.days - nb_lines * 7
                     event_item.x += nb_columns * self.day_width
-                    event_item.update()
                     self.drag_date = cur_pointed_date
+                event_item.y += diff_y
                 event_item.update()
                 return
 
             # Handle horizontal translation
             if cur_pointed_date != self.drag_date:
-                daysdelta = cur_pointed_date - self.drag_date
-                event_item.x += daysdelta.days * self.day_width
                 self.drag_date = cur_pointed_date
+                event_item.event.start += daysdelta
+                if event_item.event.end:
+                    event_item.event.end += daysdelta
+                event_item.x += daysdelta.days * self.day_width
 
             if event_item.event.multidays or event_item.event.all_day:
                 event_item.update()
@@ -734,23 +789,34 @@ class Calendar(goocanvas.Canvas):
             # Compute vertical translation
             diff_minutes = int(round(self.drag_height / self.minute_height))
             diff_time = datetime.timedelta(minutes=diff_minutes)
-            old_time = event_item.event.start
-            new_time = old_time + diff_time
-            next_level = util.next_level(old_time, self.MIN_PER_LEVEL)
-            prev_level = util.prev_level(old_time, self.MIN_PER_LEVEL)
-            if diff_time >= datetime.timedelta(0) and new_time >= next_level:
-                new_time = util.prev_level(new_time, self.MIN_PER_LEVEL)
-            elif diff_time < datetime.timedelta(0) and new_time <= prev_level:
-                new_time = util.next_level(new_time, self.MIN_PER_LEVEL)
+            old_start = event_item.event.start
+            new_start = old_start + diff_time
+            next_level = util.next_level(old_start, self.MIN_PER_LEVEL)
+            prev_level = util.prev_level(old_start, self.MIN_PER_LEVEL)
+            if diff_time >= datetime.timedelta(0) and new_start >= next_level:
+                new_start = util.prev_level(new_start, self.MIN_PER_LEVEL)
+            elif diff_time < datetime.timedelta(0) and new_start <= prev_level:
+                new_start = util.next_level(new_start, self.MIN_PER_LEVEL)
             else:
                 # We stay at the same level
                 event_item.update()
                 return
 
             # Apply event item vertical translation
-            timedelta = new_time - old_time
-            event_item.event.start += timedelta
+            midnight = datetime.time(0)
+            old_start_midnight = datetime.datetime.combine(old_start, midnight)
+            onedaydelta = datetime.timedelta(days=1)
+            next_day_midnight = old_start_midnight + onedaydelta
+            if new_start.day < old_start.day:
+                new_start = old_start_midnight
+            elif new_start >= next_day_midnight:
+                seconds_per_level = 60 * self.MIN_PER_LEVEL
+                level_delta = datetime.timedelta(seconds=seconds_per_level)
+                last_level = next_day_midnight - level_delta
+                new_start = last_level
+            event_item.event.start = new_start
             if event_item.event.end:
+                timedelta = new_start - old_start
                 event_item.event.end += timedelta
             pxdelta = (timedelta.total_seconds() / 60 * self.minute_height)
             event_item.y += pxdelta
@@ -766,7 +832,7 @@ gobject.signal_new('event-released',
     Calendar,
     gobject.SIGNAL_RUN_FIRST,
     gobject.TYPE_NONE,
-    (gobject.TYPE_PYOBJECT, gobject.TYPE_PYOBJECT))
+    (gobject.TYPE_PYOBJECT,))
 gobject.signal_new('day-clicked',
     Calendar,
     gobject.SIGNAL_RUN_FIRST,

@@ -29,6 +29,7 @@ class DayItem(goocanvas.Group):
         self.lines = {}
         self.n_lines = 0
         self.title_text_color = ""
+        self.line_height = 0
 
         # Create canvas items.
         self.border = goocanvas.Rect(parent=self)
@@ -47,7 +48,6 @@ class DayItem(goocanvas.Group):
         style = self.cal.get_style()
         font_descr = style.font_desc.copy()
         font = font_descr.to_string()
-        pango_size = font_descr.get_size()
         self.text.set_property('font', font)
         self.text.set_property('text', caption)
         logical_height = self.text.get_natural_extents()[1][3]

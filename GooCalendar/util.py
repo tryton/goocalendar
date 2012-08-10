@@ -1,8 +1,8 @@
 #This file is part of GooCalendar.  The COPYRIGHT file at the top level of
 #this repository contains the full copyright notices and license terms.
+import sys
 import datetime
 import calendar
-import locale
 
 
 def my_weekdatescalendar(cal, *date):
@@ -162,3 +162,60 @@ def color_to_string(color):
     hexstring = "#%02X%02X%02X" % (
         color.red / 256, color.blue / 256, color.green / 256)
     return hexstring
+
+
+def colors_to_rgba(red, green, blue, alpha):
+    values = [alpha, blue, green, red]
+    rgba_color = 0
+    base = 1
+    for value in values:
+        rgba_color += value * base
+        base *= 256
+    return rgba_color
+
+
+def rgba_to_colors(rgba):
+    i = 0
+    colors = []
+    base = 256
+    prev_base = 1
+    while i < 4:
+        value = (rgba % base) / prev_base
+        colors.append(value)
+        rgba -= value
+        prev_base = base
+        base *= 256
+        i += 1
+    return colors[3], colors[2], colors[1], colors[0]
+
+
+if sys.version_info >= (2, 7):
+    from functools import total_ordering
+else:
+    # This code comes from python standard library
+    def total_ordering(cls):
+        """Class decorator that fills in missing ordering methods"""
+        convert = {
+            '__lt__': [('__gt__', lambda self, other: not (self < other or self == other)),
+                       ('__le__', lambda self, other: self < other or self == other),
+                       ('__ge__', lambda self, other: not self < other)],
+            '__le__': [('__ge__', lambda self, other: not self <= other or self == other),
+                       ('__lt__', lambda self, other: self <= other and not self == other),
+                       ('__gt__', lambda self, other: not self <= other)],
+            '__gt__': [('__lt__', lambda self, other: not (self > other or self == other)),
+                       ('__ge__', lambda self, other: self > other or self == other),
+                       ('__le__', lambda self, other: not self > other)],
+            '__ge__': [('__le__', lambda self, other: (not self >= other) or self == other),
+                       ('__gt__', lambda self, other: self >= other and not self == other),
+                       ('__lt__', lambda self, other: not self >= other)]
+        }
+        roots = set(dir(cls)) & set(convert)
+        if not roots:
+            raise ValueError('must define at least one ordering operation: < > <= >=')
+        root = max(roots)       # prefer __lt__ to __le__ to __gt__ to __ge__
+        for opname, opfunc in convert[root]:
+            if opname not in roots:
+                opfunc.__name__ = opname
+                opfunc.__doc__ = getattr(int, opname).__doc__
+                setattr(cls, opname, opfunc)
+        return cls

@@ -41,11 +41,13 @@ class EventStore(gobject.GObject):
         self.next_event_id = 0
         self.emit('events-cleared')
 
-    def get_events(self, start, end):
+    def get_events(self, start=None, end=None):
         """
         Returns a list of all events that intersect with the given start
         and end times.
         """
+        if not start and not end:
+            return self.events.values()
         events = []
         for event in self.events.values():
             if util.event_intersects(event, start, end):
