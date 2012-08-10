@@ -54,7 +54,6 @@ class EventItem(goocanvas.Group):
         starttime = self.event.start.strftime(self.time_format)
         endtime = self.event.end.strftime(self.time_format)
         tooltip = '%s - %s\n%s' % (starttime, endtime, self.event.caption)
-        the_event_bg_color = self.event.bg_color
 
         # Do we have enough width for caption
         first_line = starttime + ' - ' + endtime
@@ -130,7 +129,6 @@ class EventItem(goocanvas.Group):
             tooltip = self.event.caption
         caption = '' if self.no_caption else tooltip
         the_event_bg_color = self.event.bg_color
-        self.text.set_property('font', self.font)
         self.text.set_property('text', caption)
         logical_height = self.text.get_natural_extents()[1][3]
         self.height = logical_height / pango.SCALE
