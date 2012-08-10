@@ -25,7 +25,9 @@ class Event(object):
 
     @property
     def multidays(self):
-        return (not self.end or (self.end - self.start).days > 0)
+        if not self.end:
+            return False
+        return (self.end - self.start).days > 0
 
     def __eq__(self, other_event):
         if not isinstance(other_event, Event):

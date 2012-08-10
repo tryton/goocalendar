@@ -112,6 +112,7 @@ class EventItem(goocanvas.Group):
         self.text.set_property('y', self.y)
         self.text.set_property('text', caption)
         self.text.set_property('fill_color', the_event_text_color)
+        self.text.set_property('tooltip', tooltip)
 
         # Clip the text.
         x2, y2 = self.x + self.width, self.y + self.height,
@@ -121,13 +122,26 @@ class EventItem(goocanvas.Group):
 
     def update_all_day_event(self):
         self.width = max(self.width, 0)
-        if self.event.multidays and not self.event.all_day:
-            starttime = self.event.start.strftime(self.time_format)
+        startdate = self.event.start.strftime('%x')
+        starttime = self.event.start.strftime(self.time_format)
+        if self.event.end:
+            enddate = self.event.end.strftime('%x')
             endtime = self.event.end.strftime(self.time_format)
-            tooltip = '%s - %s %s' % (starttime, endtime, self.event.caption)
+
+        if self.event.all_day:
+            caption = self.event.caption
+            if not self.event.end:
+                tooltip = '%s\n%s' % (startdate, caption)
+            else:
+                tooltip = '%s - %s\n%s' % (startdate, enddate, caption)
+        elif self.event.multidays:
+            caption = '%s %s' % (starttime, self.event.caption)
+            tooltip = '%s %s - %s %s\n%s' % (startdate, starttime, enddate,
+                endtime, self.event.caption)
         else:
-            tooltip = self.event.caption
-        caption = '' if self.no_caption else tooltip
+            caption = '%s %s' % (starttime, self.event.caption)
+            tooltip = '%s - %s\n%s' % (starttime, endtime, self.event.caption)
+        caption = '' if self.no_caption else caption
         the_event_bg_color = self.event.bg_color
         self.text.set_property('text', caption)
         logical_height = self.text.get_natural_extents()[1][3]
@@ -161,6 +175,7 @@ class EventItem(goocanvas.Group):
         self.text.set_property('x', self.x + 2)
         self.text.set_property('y', self.y)
         self.text.set_property('fill_color', the_event_text_color)
+        self.text.set_property('tooltip', tooltip)
 
         # Clip the text.
         x2, y2 = self.x + self.width, self.y + self.height,
