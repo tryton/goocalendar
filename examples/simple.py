@@ -7,8 +7,8 @@ import gtk
 import GooCalendar
 
 
-def on_event_clicked(calendar, event, event_store):
-    print "Event %s was clicked" % event.caption
+def on_event_pressed(calendar, event, event_store):
+    print "Event %s was pressed" % event.caption
 
 
 def on_day_selected(calendar, day):
@@ -79,7 +79,7 @@ window.set_size_request(400, 400)
 window.show_all()
 
 window.connect('delete-event', gtk.main_quit)
-calendar.connect('event-clicked', on_event_clicked, event_store)
+calendar.connect('event-pressed', on_event_pressed, event_store)
 calendar.connect('day-selected',  on_day_selected)
 calendar.connect('key-press-event', on_key_pressed)
 gtk.main()

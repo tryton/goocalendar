@@ -10,6 +10,7 @@ import goocanvas
 import pango
 
 import util
+from util import left_click
 from DayItem      import DayItem
 from EventItem    import EventItem
 from TimelineItem import TimelineItem
@@ -38,6 +39,9 @@ class Calendar(goocanvas.Canvas):
         self.drag_x = None
         self.drag_y = None
         self.drag_height = 0
+        self._last_click_x = None
+        self._last_click_y = None
+        self._last_click_time = 0
         self.day_width = 0
         self.day_height = 0
         self.set_event_store(event_store)
@@ -579,7 +583,7 @@ class Calendar(goocanvas.Canvas):
 
                     event_item = EventItem(self, event=event,
                         time_format=self.time_format)
-                    if len(event.event_items):
+                    if event.event_items:
                         event_item.no_caption = True
                     event.event_items.append(event_item)
                     event_item.connect('button_press_event',
@@ -630,9 +634,31 @@ class Calendar(goocanvas.Canvas):
         elif event.keyval == gtk.gdk.keyval_from_name('Right'):
             self.select(date + datetime.timedelta(1))
 
+    @left_click
     def on_day_item_button_press_event(self, day, widget2, event):
-        self.emit('day-clicked', day.date)
+        self.emit('day-pressed', day.date)
         self.select(day.date)
+
+        if self._is_double_click(event):
+            self.emit('day-activated', day)
+
+    def _is_double_click(self, event):
+        gtk_settings = gtk.settings_get_default()
+        double_click_distance = gtk_settings.props.gtk_double_click_distance
+        double_click_time = gtk_settings.props.gtk_double_click_time
+        if (self._last_click_x is not None and
+                event.time < (self._last_click_time + double_click_time) and
+                abs(event.x - self._last_click_x) <= double_click_distance and
+                abs(event.y - self._last_click_y) <= double_click_distance):
+            self._last_click_x = None
+            self._last_click_y = None
+            self._last_click_time = None
+            return True
+        else:
+            self._last_click_x = event.x
+            self._last_click_y = event.y
+            self._last_click_time = event.time
+            return False
 
     def get_cur_pointed_date(self, x, y):
         """
@@ -664,7 +690,9 @@ class Calendar(goocanvas.Canvas):
             day_no = int((x - offset_x) / self.day_width)
         return cur_week[day_no]
 
+    @left_click
     def on_event_item_button_press_event(self, event_item, rect, event):
+
         # Drag and drop starting coordinates
         self.drag_x = event.x
         self.drag_y = event.y
@@ -737,20 +765,25 @@ class Calendar(goocanvas.Canvas):
                     event_item.y -= item_height
                     event_item.no_caption = False
         event_item.update()
-        self.emit('event-clicked', event_item.event)
+        self.emit('event-pressed', event_item.event)
+
+        if self._is_double_click(event):
+            self._stop_drag_and_drop()
+            self.emit('event-activated', event_item.event)
 
     def on_event_item_button_release(self, event_item, rect, event):
         event_item.transparent = False
+        self._stop_drag_and_drop()
+        self.draw_events()
+        self.emit('event-released', event_item.event)
 
-        # Drag and drop is over
+    def _stop_drag_and_drop(self):
         self.drag_x = None
         self.drag_y = None
         self.drag_height = 0
         self.drag_start_date = None
         self.drag_date = None
         self.set_has_tooltip(True)
-        self.draw_events()
-        self.emit('event-released', event_item.event)
 
     def on_event_item_motion_notified(self, event_item, rect, event):
         if self.drag_x and self.drag_y:
@@ -803,7 +836,7 @@ class Calendar(goocanvas.Canvas):
                 event_item.update()
                 return
 
-            # Apply event item vertical translation
+            # Apply vertical translation
             midnight = datetime.time(0)
             old_start_midnight = datetime.datetime.combine(old_start, midnight)
             onedaydelta = datetime.timedelta(days=1)
@@ -824,7 +857,12 @@ class Calendar(goocanvas.Canvas):
             event_item.update()
             self.drag_height -= pxdelta
 
-gobject.signal_new('event-clicked',
+gobject.signal_new('event-pressed',
+    Calendar,
+    gobject.SIGNAL_RUN_FIRST,
+    gobject.TYPE_NONE,
+    (gobject.TYPE_PYOBJECT,))
+gobject.signal_new('event-activated',
     Calendar,
     gobject.SIGNAL_RUN_FIRST,
     gobject.TYPE_NONE,
@@ -834,7 +872,12 @@ gobject.signal_new('event-released',
     gobject.SIGNAL_RUN_FIRST,
     gobject.TYPE_NONE,
     (gobject.TYPE_PYOBJECT,))
-gobject.signal_new('day-clicked',
+gobject.signal_new('day-pressed',
+    Calendar,
+    gobject.SIGNAL_RUN_FIRST,
+    gobject.TYPE_NONE,
+    (gobject.TYPE_PYOBJECT,))
+gobject.signal_new('day-activated',
     Calendar,
     gobject.SIGNAL_RUN_FIRST,
     gobject.TYPE_NONE,

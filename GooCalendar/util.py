@@ -189,6 +189,14 @@ def rgba_to_colors(rgba):
     return colors[3], colors[2], colors[1], colors[0]
 
 
+def left_click(func):
+    def wrapper(*args):
+        if args[-1].button != 1:  # left mouse button is required
+            return
+        return func(*args)
+    return wrapper
+
+
 if sys.version_info >= (2, 7):
     from functools import total_ordering
 else:
