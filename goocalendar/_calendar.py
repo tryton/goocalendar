@@ -3,6 +3,8 @@
 import time
 import datetime
 import calendar
+import math
+from operator import add
 
 import gtk
 import gobject
@@ -10,10 +12,7 @@ import goocanvas
 import pango
 
 import util
-from util import left_click
-from DayItem      import DayItem
-from EventItem    import EventItem
-from TimelineItem import TimelineItem
+from .util import left_click
 
 
 class Calendar(goocanvas.Canvas):
@@ -897,3 +896,376 @@ gobject.signal_new('page_changed',
     gobject.SIGNAL_RUN_FIRST,
     gobject.TYPE_NONE,
     (gobject.TYPE_PYOBJECT,))
+
+
+class DayItem(goocanvas.Group):
+    """
+    A canvas item representing a day.
+    """
+
+    def __init__(self, cal, **kwargs):
+        super(DayItem, self).__init__()
+
+        self.cal = cal
+        self.x = kwargs.get('x', 0)
+        self.y = kwargs.get('y', 0)
+        self.width = kwargs.get('width', 0)
+        self.height = kwargs.get('height', 0)
+        self.border_color = kwargs.get('border_color')
+        self.body_color = kwargs.get('body_color')
+        self.full_border = kwargs.get('full_border')
+        self.date = kwargs.get('date')
+        self.type = kwargs.get('type', 'month')
+        self.show_indic = False
+        self.lines = {}
+        self.n_lines = 0
+        self.title_text_color = ""
+        self.line_height = 0
+
+        # Create canvas items.
+        self.border = goocanvas.Rect(parent=self)
+        self.text = goocanvas.Text(parent=self)
+        self.box = goocanvas.Rect(parent=self)
+        self.indic = goocanvas.Rect(parent=self)
+
+    def update(self):
+        if not self.date:
+            return
+
+        date_tuple = self.date.timetuple()[:3]
+        week_day = calendar.weekday(*date_tuple)
+        day_name = calendar.day_name[week_day]
+        caption = '%s %s' % (date_tuple[2], day_name)
+        style = self.cal.get_style()
+        font_descr = style.font_desc.copy()
+        font = font_descr.to_string()
+        self.text.set_property('font', font)
+        self.text.set_property('text', caption)
+        logical_height = self.text.get_natural_extents()[1][3]
+        line_height = int(math.ceil(float(logical_height) / pango.SCALE))
+        self.line_height = line_height
+
+        # Draw the border.
+        self.border.set_property('x', self.x)
+        self.border.set_property('y', self.y)
+        self.border.set_property('width', self.width)
+        self.border.set_property('height', self.height)
+        self.border.set_property('stroke_color', self.border_color)
+        self.border.set_property('fill_color', self.border_color)
+
+        # Draw the title text.
+        padding_left = 2
+        self.text.set_property('x', self.x + padding_left)
+        self.text.set_property('y', self.y)
+        self.text.set_property('fill_color', self.title_text_color)
+
+        # Print the "body" of the day.
+        if self.full_border:
+            box_x = self.x + 2
+            box_y = self.y + line_height
+            box_width = max(self.width - 4, 0)
+            box_height = max(self.height - line_height - 3, 0)
+        else:
+            box_x = self.x + 1
+            box_y = self.y + line_height
+            box_width = max(self.width - 2, 0)
+            box_height = max(self.height - line_height, 0)
+        self.box.set_property('x', box_x)
+        self.box.set_property('y', box_y)
+        self.box.set_property('width', box_width)
+        self.box.set_property('height', box_height)
+        self.box.set_property('stroke_color', self.body_color)
+        self.box.set_property('fill_color', self.body_color)
+
+        line_height_and_margin = line_height + 2  # 2px of margin per line
+        self.n_lines = int(box_height / line_height_and_margin)
+
+        # Show an indicator in the title, if requested.
+        if not self.show_indic:
+            self.indic.set_property('visibility', goocanvas.ITEM_INVISIBLE)
+            return
+
+        self.indic.set_property('visibility', goocanvas.ITEM_VISIBLE)
+        self.indic.set_property('x',
+            self.x + self.width - line_height / 1.5)
+        self.indic.set_property('y', self.y + line_height / 3)
+        self.indic.set_property('width', line_height / 3)
+        self.indic.set_property('height', line_height / 3)
+        self.indic.set_property('stroke_color', self.title_text_color)
+        self.indic.set_property('fill_color', self.title_text_color)
+
+        # Draw a triangle.
+        x1 = self.x + self.width - line_height / 1.5
+        y1 = self.y + line_height / 3
+        x2 = x1 + line_height / 6
+        y2 = y1 + line_height / 3
+        x3 = x1 + line_height / 3
+        y3 = y1
+        path = 'M%s,%s L%s,%s L%s,%s Z' % (x1, y1, x2, y2, x3, y3)
+        self.indic.set_property('clip_path', path)
+
+
+class EventItem(goocanvas.Group):
+    """
+    A canvas item representing an event.
+    """
+
+    def __init__(self, cal, **kwargs):
+        super(EventItem, self).__init__()
+
+        self.cal = cal
+        self.x = kwargs.get('x')
+        self.y = kwargs.get('y')
+        self.width = kwargs.get('width')
+        self.height = kwargs.get('height')
+        self.bg_color = kwargs.get('bg_color')
+        self.text_color = kwargs.get('text_color')
+        self.event = kwargs.get('event')
+        self.type = kwargs.get('type', 'leftright')
+        self.time_format = kwargs.get('time_format')
+        self.transparent = False
+        self.no_caption = False
+
+        # Create canvas items.
+        self.box = goocanvas.Rect(parent=self)
+        self.text = goocanvas.Text(parent=self)
+        style = self.cal.get_style()
+        font_descr = style.font_desc.copy()
+        self.font = font_descr.to_string()
+        self.text.set_property('font', self.font)
+        logical_height = self.text.get_natural_extents()[1][3]
+        self.line_height = logical_height / pango.SCALE
+
+        if self.x is not None:
+            self.update()
+
+    def update(self):
+        if (self.event.all_day or self.cal.zoom == "month"
+                or self.event.multidays):
+            self.update_all_day_event()
+        else:
+            self.update_event()
+
+    def update_event(self):
+        self.width = max(self.width, 0)
+        starttime = self.event.start.strftime(self.time_format)
+        endtime = self.event.end.strftime(self.time_format)
+        tooltip = '%s - %s\n%s' % (starttime, endtime, self.event.caption)
+
+        # Do we have enough width for caption
+        first_line = starttime + ' - ' + endtime
+        self.text.set_property('text', first_line)
+        logical_width = self.text.get_natural_extents()[1][2] / pango.SCALE
+        if self.width < logical_width:
+            first_line = starttime + ' - '
+
+        second_line = self.event.caption
+        self.text.set_property('text', second_line)
+        logical_width = self.text.get_natural_extents()[1][2] / pango.SCALE
+        if self.width < logical_width:
+            second_line = None
+
+        # Do we have enough height for whole caption
+        if self.height >= (2 * self.line_height):
+            caption = first_line
+            if second_line:
+                caption += '\n' + second_line
+        elif self.height >= self.line_height:
+            caption = first_line
+        else:
+            caption = ''
+        caption = '' if self.no_caption else caption
+        the_event_bg_color = self.event.bg_color
+
+        # Choose text color.
+        if self.event.text_color is None:
+            the_event_text_color = self.text_color
+        else:
+            the_event_text_color = self.event.text_color
+
+        if the_event_bg_color is not None:
+            self.box.set_property('x', self.x)
+            self.box.set_property('y', self.y)
+            self.box.set_property('width', self.width)
+            self.box.set_property('height', self.height)
+            self.box.set_property('stroke_color', the_event_bg_color)
+            bg_rgba_color = self.box.get_property('stroke_color_rgba')
+            bg_colors = list(util.rgba_to_colors(bg_rgba_color))
+            # We make background color 1/4 brighter (+64 over 255)
+            bg_colors[:3] = map(min,
+                map(add, bg_colors[:3], (64,) * 3), (255,) * 3)
+            bg_colors = util.colors_to_rgba(*bg_colors)
+            self.box.set_property('fill_color_rgba', bg_colors)
+
+            # Alpha color is set to half of 255, i.e an opacity of 5O percents
+            transparent_color = self.box.get_property('fill_color_rgba') - 128
+            if self.transparent:
+                self.box.set_property('stroke_color_rgba', transparent_color)
+                self.box.set_property('fill_color_rgba', transparent_color)
+            self.box.set_property('tooltip', tooltip)
+
+        # Print the event name into the title box.
+        self.text.set_property('x', self.x + 2)
+        self.text.set_property('y', self.y)
+        self.text.set_property('text', caption)
+        self.text.set_property('fill_color', the_event_text_color)
+        self.text.set_property('tooltip', tooltip)
+
+        # Clip the text.
+        x2, y2 = self.x + self.width, self.y + self.height,
+        path = 'M%s,%s L%s,%s L%s,%s L%s,%s Z' % (self.x, self.y, self.x, y2,
+            x2, y2, x2, self.y)
+        self.text.set_property('clip_path', path)
+
+    def update_all_day_event(self):
+        self.width = max(self.width, 0)
+        startdate = self.event.start.strftime('%x')
+        starttime = self.event.start.strftime(self.time_format)
+        if self.event.end:
+            enddate = self.event.end.strftime('%x')
+            endtime = self.event.end.strftime(self.time_format)
+
+        if self.event.all_day:
+            caption = self.event.caption
+            if not self.event.end:
+                tooltip = '%s\n%s' % (startdate, caption)
+            else:
+                tooltip = '%s - %s\n%s' % (startdate, enddate, caption)
+        elif self.event.multidays:
+            caption = '%s %s' % (starttime, self.event.caption)
+            tooltip = '%s %s - %s %s\n%s' % (startdate, starttime, enddate,
+                endtime, self.event.caption)
+        else:
+            caption = '%s %s' % (starttime, self.event.caption)
+            tooltip = '%s - %s\n%s' % (starttime, endtime, self.event.caption)
+        caption = '' if self.no_caption else caption
+        the_event_bg_color = self.event.bg_color
+        self.text.set_property('text', caption)
+        logical_height = self.text.get_natural_extents()[1][3]
+        self.height = logical_height / pango.SCALE
+
+        # Choose text color.
+        if self.event.text_color is None:
+            the_event_text_color = self.text_color
+        else:
+            the_event_text_color = self.event.text_color
+
+        if the_event_bg_color is not None:
+            self.box.set_property('x', self.x)
+            self.box.set_property('y', self.y)
+            self.box.set_property('width', self.width)
+            self.box.set_property('height', self.height)
+            self.box.set_property('stroke_color', the_event_bg_color)
+            bg_rgba_color = self.box.get_property('stroke_color_rgba')
+            bg_colors = list(util.rgba_to_colors(bg_rgba_color))
+            bg_colors[:3] = map(min,
+                map(add, bg_colors[:3], (64,) * 3), (255,) * 3)
+            bg_colors = util.colors_to_rgba(*bg_colors)
+            self.box.set_property('fill_color_rgba', bg_colors)
+            transparent_color = self.box.get_property('fill_color_rgba') - 128
+            if self.transparent:
+                self.box.set_property('stroke_color_rgba', transparent_color)
+                self.box.set_property('fill_color_rgba', transparent_color)
+            self.box.set_property('tooltip', tooltip)
+
+        # Print the event name into the title box.
+        self.text.set_property('x', self.x + 2)
+        self.text.set_property('y', self.y)
+        self.text.set_property('fill_color', the_event_text_color)
+        self.text.set_property('tooltip', tooltip)
+
+        # Clip the text.
+        x2, y2 = self.x + self.width, self.y + self.height,
+        path = 'M%s,%s L%s,%s L%s,%s L%s,%s Z' % (
+            self.x, self.y, self.x, y2, x2, y2, x2, self.y)
+        self.text.set_property('clip_path', path)
+
+
+class TimelineItem(goocanvas.Group):
+    """
+    A canvas item representing a timeline.
+    """
+
+    def __init__(self, cal, **kwargs):
+        super(TimelineItem, self).__init__()
+
+        self.cal = cal
+        self.x = kwargs.get('x')
+        self.y = kwargs.get('y')
+        self.line_color = kwargs.get('line_color')
+        self.bg_color = kwargs.get('bg_color')
+        self.text_color = kwargs.get('text_color')
+        self.time_format = kwargs.get('time_format')
+        self.width = 0
+
+        # Create canvas items.
+        self.timeline_rect = {}
+        self.timeline_text = {}
+        for n in range(24):
+            caption = datetime.time(n).strftime(self.time_format)
+            self.timeline_rect[n] = goocanvas.Rect(parent=self)
+            self.timeline_text[n] = goocanvas.Text(parent=self, text=caption)
+
+        if self.x is not None:
+            self.update()
+
+    @property
+    def min_line_height(self):
+        logical_height = 0
+        self.ink_padding_top = 0
+        for n in range(24):
+            natural_extents = self.timeline_text[n].get_natural_extents()
+            logical_rect = natural_extents[1]
+            logical_height = max(logical_height, logical_rect[3])
+            ink_rect = natural_extents[0]
+            self.ink_padding_top = max(self.ink_padding_top, ink_rect[0])
+        line_height = int(math.ceil(float(logical_height) / pango.SCALE))
+        return line_height
+
+    @property
+    def line_height(self):
+        self.padding_top = 0
+        line_height = self.min_line_height
+        if line_height < self.height / 24:
+            line_height = self.height / 24
+            pango_size = self.cal.get_style().font_desc.get_size()
+            padding_top = (line_height - pango_size / pango.SCALE) / 2
+            padding_top -= int(math.ceil(float(self.ink_padding_top) /
+                pango.SCALE))
+            self.padding_top = padding_top
+        return line_height
+
+    def _compute_width(self):
+        style = self.cal.get_style()
+        font = style.font_desc
+        ink_padding_left = 0
+        ink_max_width = 0
+        for n in range(24):
+            self.timeline_text[n].set_property('font', font)
+            natural_extents = self.timeline_text[n].get_natural_extents()
+            ink_rect = natural_extents[0]
+            ink_padding_left = max(ink_padding_left, ink_rect[0])
+            ink_max_width = max(ink_max_width, ink_rect[2])
+        self.width = int(math.ceil(float(ink_padding_left + ink_max_width)
+            / pango.SCALE))
+
+    def update(self):
+        self._compute_width()
+        line_height = self.line_height
+
+        # Draw the timeline.
+        for n in range(24):
+            rect = self.timeline_rect[n]
+            text = self.timeline_text[n]
+            y = self.y + n * line_height
+
+            rect.set_property('x', self.x)
+            rect.set_property('y', y)
+            rect.set_property('width', self.width)
+            rect.set_property('height', line_height)
+            rect.set_property('stroke_color', self.line_color)
+            rect.set_property('fill_color', self.bg_color)
+
+            text.set_property('x', self.x)
+            text.set_property('y', y + self.padding_top)
+            text.set_property('fill_color', self.text_color)
