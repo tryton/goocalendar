@@ -21,32 +21,32 @@ class Calendar(goocanvas.Canvas):
 
     def __init__(self, event_store=None, zoom="month", time_format="%H:%M"):
         super(Calendar, self).__init__()
-        self.cal = calendar.Calendar(calendar.SUNDAY)
-        self.today = time.localtime(time.time())[:3]
-        self.selected_date = self.today
-        self.selected_day = None
-        self.bg_rect = None
-        self.timeline = None
-        self.line_height = 0
-        self.realized = False
-        self.event_store = None
+        self._cal = calendar.Calendar(calendar.SUNDAY)
+        self._today = time.localtime(time.time())[:3]
+        self._selected_day = None
+        self._bg_rect = None
+        self._timeline = None
+        self._line_height = 0
+        self._realized = False
+        self._event_store = None
         self._event_removed_sigid = None
         self._event_added_sigid = None
         self._events_cleared_sigid = None
-        self.drag_start_date = None
-        self.drag_date = None
-        self.drag_x = None
-        self.drag_y = None
-        self.drag_height = 0
+        self.set_event_store(event_store)
+        self._drag_start_date = None
+        self._drag_date = None
+        self._drag_x = None
+        self._drag_y = None
+        self._drag_height = 0
         self._last_click_x = None
         self._last_click_y = None
         self._last_click_time = 0
-        self.day_width = 0
-        self.day_height = 0
-        self.set_event_store(event_store)
-        self.event_items = []
+        self._day_width = 0
+        self._day_height = 0
+        self._event_items = []
         assert zoom in self.ZOOM_LEVELS
         self.zoom = zoom
+        self.selected_date = self._today
         self.time_format = time_format
         self.set_bounds(0, 0, 200, 200)
         self.set_flags(gtk.CAN_FOCUS)
@@ -68,10 +68,10 @@ class Calendar(goocanvas.Canvas):
         root = self.get_root_item()
         style = self.get_style()
         color = util.color_to_string(style.bg[gtk.STATE_PRELIGHT])
-        self.bg_rect = goocanvas.Rect(parent=root, x=0, y=0,
+        self._bg_rect = goocanvas.Rect(parent=root, x=0, y=0,
             stroke_color=color, fill_color=color)
-        self.timeline = TimelineItem(self, time_format=self.time_format)
-        root.add_child(self.timeline)
+        self._timeline = TimelineItem(self, time_format=self.time_format)
+        root.add_child(self._timeline)
         self.days = []
         while len(self.days) < 42:  # 6 rows of 7 days
             box = DayItem(self)
@@ -82,14 +82,14 @@ class Calendar(goocanvas.Canvas):
 
     def select_from_tuple(self, new_date):
         old_date = self.selected_date
-        old_day = self.selected_day
+        old_day = self._selected_day
         self.selected_date = new_date[:3]
         page_changed = False
         if self.zoom == "month":
             page_changed = old_date[:2] != new_date[:2]
         elif self.zoom == "week":
-            old_first_weekday = util.first_day_of_week(self.cal, old_date)
-            new_first_weekday = util.first_day_of_week(self.cal, new_date)
+            old_first_weekday = util.first_day_of_week(self._cal, old_date)
+            new_first_weekday = util.first_day_of_week(self._cal, new_date)
             page_changed = old_first_weekday != new_first_weekday
 
         # This is slow: When the month was changed we need to update
@@ -102,7 +102,7 @@ class Calendar(goocanvas.Canvas):
 
         # This is fast: Update only the old and newly selected days.
         # Find the canvas item that corresponds to the new date.
-        weeks = self.cal.monthdayscalendar(*new_date[:2])
+        weeks = self._cal.monthdayscalendar(*new_date[:2])
         found = -1
         for weekno, week in enumerate(weeks):
             for dayno, day in enumerate(week):
@@ -123,7 +123,7 @@ class Calendar(goocanvas.Canvas):
         # Redraw.
         old_day.update()
         new_day.update()
-        self.selected_day = new_day
+        self._selected_day = new_day
         if old_day != new_day:
             self.emit('day-selected', self.get_selected_date())
 
@@ -133,17 +133,18 @@ class Calendar(goocanvas.Canvas):
     def select_previous_page(self):
         date = datetime.datetime(*self.selected_date)
         if self.zoom == "month":
-            selected_date = util.previous_month(self.cal, date).timetuple()[:3]
+            selected_date = \
+                util.previous_month(self._cal, date).timetuple()[:3]
         elif self.zoom == "week":
-            selected_date = util.previous_week(self.cal, date).timetuple()[:3]
+            selected_date = util.previous_week(self._cal, date).timetuple()[:3]
         self.select_from_tuple(selected_date)
 
     def select_next_page(self):
         date = datetime.datetime(*self.selected_date)
         if self.zoom == "month":
-            date = util.next_month(self.cal, date)
+            date = util.next_month(self._cal, date)
         elif self.zoom == "week":
-            date = util.next_week(self.cal, date)
+            date = util.next_week(self._cal, date)
         self.select(date)
 
     def set_zoom(self, level):
@@ -159,37 +160,38 @@ class Calendar(goocanvas.Canvas):
 
     def set_event_store(self, event_store):
         # Disconnect previous event store if any
-        if self.event_store:
-            self.event_store.disconnect(self._event_removed_sigid)
-            self.event_store.disconnect(self._event_added_sigid)
-            self.event_store_disconnect(self._events_cleared_sigid)
+        if self._event_store:
+            self._event_store.disconnect(self._event_removed_sigid)
+            self._event_store.disconnect(self._event_added_sigid)
+            self._event_store_disconnect(self._events_cleared_sigid)
 
         # Set and connect new event_store
-        self.event_store = event_store
+        self._event_store = event_store
         self.update()
         if not event_store:
             return
-        self._event_removed_sigid = self.event_store.connect('event-removed',
+        self._event_removed_sigid = self._event_store.connect('event-removed',
             self.on_event_store_event_removed)
-        self._event_added_sigid = self.event_store.connect('event-added',
+        self._event_added_sigid = self._event_store.connect('event-added',
             self.on_event_store_event_added)
-        self._events_cleared_sigid = self.event_store.connect('events-cleared',
+        self._events_cleared_sigid = \
+            self._event_store.connect('events-cleared',
             self.on_event_store_events_cleared)
 
     def on_realize(self, *args):
-        self.realized = True
+        self._realized = True
         self.grab_focus(self.get_root_item())
         self.on_size_allocate(*args)
 
     def on_size_allocate(self, *args):
         alloc = self.get_allocation()
-        if not self.realized or alloc.width < 10 or alloc.height < 10:
+        if not self._realized or alloc.width < 10 or alloc.height < 10:
             return
         self.set_bounds(0, 0, alloc.width, alloc.height)
         self.update()
 
     def update(self):
-        if not self.realized:
+        if not self._realized:
             return
         self.draw_background()
         if self.zoom == "month":
@@ -200,8 +202,8 @@ class Calendar(goocanvas.Canvas):
 
     def draw_background(self):
         x, y, w, h = self.get_bounds()
-        self.bg_rect.set_property('width', w)
-        self.bg_rect.set_property('height', h)
+        self._bg_rect.set_property('width', w)
+        self._bg_rect.set_property('height', h)
 
     def draw_week(self):
         """
@@ -216,20 +218,20 @@ class Calendar(goocanvas.Canvas):
             style.mid[gtk.STATE_SELECTED])
         today_body_color = 'ivory'
         x, y, w, h = self.get_bounds()
-        timeline_w = self.timeline.width
+        timeline_w = self._timeline.width
         caption_size = max(len(day_name) for day_name in calendar.day_name)
         caption_size += 3  # The needed space for the date before the day_name
         day_width_min = caption_size * pango_size / pango.SCALE
         day_width_max = (w - timeline_w) / 7
-        self.day_width = max(day_width_min, day_width_max)
-        self.day_height = h
+        self._day_width = max(day_width_min, day_width_max)
+        self._day_height = h
         width, height = self.get_size_request()
-        new_width = int(timeline_w + 7 * self.day_width)
+        new_width = int(timeline_w + 7 * self._day_width)
         if (width != new_width and day_width_min >= day_width_max):
             self.set_size_request(new_width, height)  # Minimum widget size
 
         # Redraw all days.
-        weeks = util.my_monthdatescalendar(self.cal, *self.selected_date)
+        weeks = util.my_monthdatescalendar(self._cal, *self.selected_date)
         for weekno, week in enumerate(weeks):
             # Hide all days that are not part of the current week.
             weekdays = [date.timetuple()[:3] for date in week]
@@ -248,17 +250,17 @@ class Calendar(goocanvas.Canvas):
                     the_border_color = selected_border_color
                 else:
                     the_border_color = border_color
-                if current_date == self.today:
+                if current_date == self._today:
                     the_body_color = today_body_color
                 else:
                     the_body_color = body_color
 
                 # Draw.
                 box = self.days[weekno * 7 + dayno]
-                box.x = self.day_width * dayno + timeline_w
+                box.x = self._day_width * dayno + timeline_w
                 box.y = 0
-                box.width = self.day_width - 2
-                box.height = self.day_height
+                box.width = self._day_width - 2
+                box.height = self._day_height
                 box.type = 'week'
                 box.date = date
                 box.full_border = selected
@@ -270,8 +272,8 @@ class Calendar(goocanvas.Canvas):
                 box.update()
 
                 if selected:
-                    self.selected_day = box
-                    self.line_height = self.selected_day.line_height
+                    self._selected_day = box
+                    self._line_height = self._selected_day.line_height
 
     def draw_month(self):
         """
@@ -284,8 +286,8 @@ class Calendar(goocanvas.Canvas):
         caption_size += 3  # The needed space for the date before the day_name
         day_width_min = caption_size * pango_size / pango.SCALE
         day_width_max = w / 7
-        self.day_width = max(day_width_min, day_width_max)
-        self.day_height = h / 6
+        self._day_width = max(day_width_min, day_width_max)
+        self._day_height = h / 6
         text_color = util.color_to_string(style.fg[gtk.STATE_NORMAL])
         inactive_text_color = util.color_to_string(
             style.fg[gtk.STATE_INSENSITIVE])
@@ -298,12 +300,12 @@ class Calendar(goocanvas.Canvas):
         today_body_color = 'ivory'
 
         # Hide the timeline.
-        if self.timeline is not None:
-            self.timeline.set_property('visibility', goocanvas.ITEM_INVISIBLE)
+        if self._timeline is not None:
+            self._timeline.set_property('visibility', goocanvas.ITEM_INVISIBLE)
 
         # Draw the grid.
         y_pos = 0
-        weeks = util.my_monthdatescalendar(self.cal, *self.selected_date)
+        weeks = util.my_monthdatescalendar(self._cal, *self.selected_date)
         for weekno, week in enumerate(weeks):
             for dayno, date in enumerate(week):
                 # The color depends on whether each day is part of the
@@ -321,17 +323,17 @@ class Calendar(goocanvas.Canvas):
                 selected = current_date == self.selected_date
                 if selected:
                     the_border_color = selected_border_color
-                if current_date == self.today:
+                if current_date == self._today:
                     the_body_color = today_body_color
                 else:
                     the_body_color = body_color
 
                 # Draw a box for the day.
                 box = self.days[weekno * 7 + dayno]
-                box.x = self.day_width * dayno
+                box.x = self._day_width * dayno
                 box.y = y_pos
-                box.width = self.day_width - 2
-                box.height = self.day_height - 2
+                box.width = self._day_width - 2
+                box.height = self._day_height - 2
                 box.date = date
                 box.full_border = selected
                 box.border_color = the_border_color
@@ -343,20 +345,20 @@ class Calendar(goocanvas.Canvas):
                 box.update()
 
                 if selected:
-                    self.selected_day = box
-                    self.line_height = self.selected_day.line_height
+                    self._selected_day = box
+                    self._line_height = self._selected_day.line_height
 
-            y_pos += self.day_height
+            y_pos += self._day_height
 
         width, height = self.get_size_request()
-        new_width = int(7 * self.day_width)
+        new_width = int(7 * self._day_width)
         new_height = int(14 * box.line_height)
-        if ((width != new_width and self.day_width == day_width_min)
+        if ((width != new_width and self._day_width == day_width_min)
             or new_height != height):
             self.set_size_request(new_width, new_height)
 
     def _get_day_item(self, find_date):
-        weeks = util.my_monthdatescalendar(self.cal, *find_date.timetuple())
+        weeks = util.my_monthdatescalendar(self._cal, *find_date.timetuple())
         for weekno, week in enumerate(weeks):
             for dayno, date in enumerate(week):
                 if date == find_date:
@@ -370,7 +372,7 @@ class Calendar(goocanvas.Canvas):
         place.
         Days that are currently not in the view are not returned.
         """
-        weeks = util.my_monthdatescalendar(self.cal, *self.selected_date)
+        weeks = util.my_monthdatescalendar(self._cal, *self.selected_date)
         start = event.start.timetuple()[:3]
         end = event.end if event.end else event.start
         end = end.timetuple()[:3]
@@ -404,24 +406,24 @@ class Calendar(goocanvas.Canvas):
 
     def draw_events(self):
         # Clear previous events.
-        for item in self.event_items:
+        for item in self._event_items:
             self.get_root_item().remove_child(item)
-        self.event_items = []
+        self._event_items = []
         for day in self.days:
             day.lines.clear()
             day.show_indic = False
             day.update()
 
-        if not self.event_store:
+        if not self._event_store:
             return
 
         if self.zoom == "month":
-            weeks = util.my_monthdatescalendar(self.cal, *self.selected_date)
+            weeks = util.my_monthdatescalendar(self._cal, *self.selected_date)
             dates = []
             for week in weeks:
                 dates += week
         else:
-            dates = util.my_weekdatescalendar(self.cal, *self.selected_date)
+            dates = util.my_weekdatescalendar(self._cal, *self.selected_date)
 
         # Retrieve a list of all events in the current time span,
         # and sort them by event length.
@@ -429,11 +431,11 @@ class Calendar(goocanvas.Canvas):
             - datetime.timedelta(microseconds=1))
         start = datetime.datetime(*dates[0].timetuple()[:3])
         end = datetime.datetime(*dates[-1].timetuple()[:3]) + onedaydelta
-        events = self.event_store.get_events(start, end)
+        events = self._event_store.get_events(start, end)
         events.sort(util.event_days, reverse=True)
 
         # Draw all-day events, longest event first.
-        max_y = self.selected_day.line_height
+        max_y = self._selected_day.line_height
         non_all_day_events = []
         for event in events:
             event.event_items = []
@@ -466,7 +468,7 @@ class Calendar(goocanvas.Canvas):
             week_end = 0
             while week_end < len(days):
                 day = days[week_start]
-                weekday = (day.date.weekday() - self.cal.firstweekday) % 7
+                weekday = (day.date.weekday() - self._cal.firstweekday) % 7
                 week_end = week_start + (7 - weekday)
                 week = days[week_start:week_end]
                 weeks.append(week)
@@ -486,7 +488,7 @@ class Calendar(goocanvas.Canvas):
                     self.on_event_item_button_release)
                 event_item.connect('motion_notify_event',
                     self.on_event_item_motion_notified)
-                self.event_items.append(event_item)
+                self._event_items.append(event_item)
                 self.get_root_item().add_child(event_item)
                 event_item.x = day.x
                 event_item.left_border = day.x + 2
@@ -523,18 +525,18 @@ class Calendar(goocanvas.Canvas):
         text_color = util.color_to_string(style.fg[gtk.STATE_NORMAL])
         border_color = util.color_to_string(style.mid[gtk.STATE_NORMAL])
         body_color = util.color_to_string(style.light[gtk.STATE_ACTIVE])
-        self.timeline.set_property('visibility', goocanvas.ITEM_VISIBLE)
+        self._timeline.set_property('visibility', goocanvas.ITEM_VISIBLE)
         x, y, w, h = self.get_bounds()
-        self.timeline.x = x
-        self.timeline.y = max_y
-        self.timeline.height = h - max_y - 2
-        self.timeline.line_color = body_color
-        self.timeline.bg_color = border_color
-        self.timeline.text_color = text_color
-        self.timeline.update()
+        self._timeline.x = x
+        self._timeline.y = max_y
+        self._timeline.height = h - max_y - 2
+        self._timeline.line_color = body_color
+        self._timeline.bg_color = border_color
+        self._timeline.text_color = text_color
+        self._timeline.update()
         width, height = self.get_size_request()
-        min_line_height = self.timeline.min_line_height
-        line_height = self.timeline.line_height
+        min_line_height = self._timeline.min_line_height
+        line_height = self._timeline.line_height
         self.minute_height = line_height / 60.0
         new_height = int(max_y + 24 * min_line_height)
         if (height != new_height):
@@ -591,7 +593,7 @@ class Calendar(goocanvas.Canvas):
                         self.on_event_item_button_release)
                     event_item.connect('motion_notify_event',
                         self.on_event_item_motion_notified)
-                    self.event_items.append(event_item)
+                    self._event_items.append(event_item)
                     self.get_root_item().add_child(event_item)
                     y_off1 = top_offset_mins * self.minute_height
                     y_off2 = bottom_offset_mins * self.minute_height
@@ -664,52 +666,52 @@ class Calendar(goocanvas.Canvas):
         Return the date of the day_item pointed by two coordinates [x,y]
         """
         # Get current week
-        weeks = util.my_monthdatescalendar(self.cal, *self.selected_date)
+        weeks = util.my_monthdatescalendar(self._cal, *self.selected_date)
         if self.zoom == 'week':
             cur_week, = (week for week in weeks for date in week
                 if self.selected_date[:3] == date.timetuple()[:3])
         elif self.zoom == 'month':
-            max_height = 6 * self.day_height
+            max_height = 6 * self._day_height
             if y < 0:
                 weekno = 0
             elif y > max_height:
                 weekno = 5
             else:
-                weekno = int(y / self.day_height)
+                weekno = int(y / self._day_height)
             cur_week = weeks[weekno]
 
         # Get Current pointed date
-        max_width = 7 * self.day_width
+        max_width = 7 * self._day_width
         if x < 0:
             day_no = 0
         elif x > max_width:
             day_no = 6
         else:
-            offset_x = self.timeline.width if self.zoom == 'week' else 0
-            day_no = int((x - offset_x) / self.day_width)
+            offset_x = self._timeline.width if self.zoom == 'week' else 0
+            day_no = int((x - offset_x) / self._day_width)
         return cur_week[day_no]
 
     @left_click
     def on_event_item_button_press_event(self, event_item, rect, event):
 
         # Drag and drop starting coordinates
-        self.drag_x = event.x
-        self.drag_y = event.y
-        self.drag_height = 0
-        self.drag_start_date = self.get_cur_pointed_date(event.x, event.y)
-        self.drag_date = self.drag_start_date
+        self._drag_x = event.x
+        self._drag_y = event.y
+        self._drag_height = 0
+        self._drag_start_date = self.get_cur_pointed_date(event.x, event.y)
+        self._drag_date = self._drag_start_date
         self.set_has_tooltip(False)
         event_item.raise_(None)
         event_item.transparent = True
 
-        event_item.width = self.day_width - 6  # Biggest event width
+        event_item.width = self._day_width - 6  # Biggest event width
         event_date = event_item.event.start.date()
-        daysdelta = self.drag_start_date - event_date
+        daysdelta = self._drag_start_date - event_date
         if self.zoom == 'week':
             event_item.x = event_item.left_border
             if ((event_item.event.all_day or event_item.event.multidays)
-                and self.drag_start_date != event_date):
-                event_item.x += daysdelta.days * self.day_width
+                and self._drag_start_date != event_date):
+                event_item.x += daysdelta.days * self._day_width
                 event_item.event.start += daysdelta
                 if event_item.event.end:
                     event_item.event.end += daysdelta
@@ -717,27 +719,30 @@ class Calendar(goocanvas.Canvas):
                 for item in event_item.event.event_items:
                     if item != event_item:
                         self.get_root_item().remove_child(item)
-                        self.event_items.remove(item)
+                        self._event_items.remove(item)
 
-                event_item.height = 2 * self.line_height
-                day_no = int((event.x - self.timeline.width) / self.day_width)
-                day_off = day_no * self.day_width + 2
-                event_item.x = self.timeline.width + day_off
+                event_item.height = 2 * self._line_height
+                day_no = (int((event.x - self._timeline.width)
+                    / self._day_width))
+                day_off = day_no * self._day_width + 2
+                event_item.x = self._timeline.width + day_off
                 if (event_item.no_caption or event.y < event_item.y or
                     event.y > (event_item.y + event_item.height)):
                     # click was not performed inside the new day item
                     level_height = self.minute_height * self.MIN_PER_LEVEL
-                    cur_level = int((event.y - self.timeline.y) / level_height)
+                    cur_level = int((event.y - self._timeline.y)
+                        / level_height)
                     nb_levels_per_hour = 60 / self.MIN_PER_LEVEL
                     cur_level -= nb_levels_per_hour  # click is in the middle
                     if cur_level < 0:
                         cur_level = 0
-                    event_item.y = self.timeline.y + cur_level * level_height
+                    event_item.y = self._timeline.y + cur_level * level_height
                     nb_minutes = cur_level * self.MIN_PER_LEVEL
                     minutes = nb_minutes % 60
                     hours = nb_minutes / 60
                     old_start = event_item.event.start
-                    new_start = datetime.datetime.combine(self.drag_start_date,
+                    new_start = \
+                        datetime.datetime.combine(self._drag_start_date,
                         datetime.time(hours, minutes))
                     event_item.event.start = new_start
                     delta = new_start - old_start
@@ -748,17 +753,17 @@ class Calendar(goocanvas.Canvas):
             for item in event_item.event.event_items:
                 if item != event_item:
                     self.get_root_item().remove_child(item)
-                    self.event_items.remove(item)
+                    self._event_items.remove(item)
                 else:
                     event_item.event.start += daysdelta
                     if event_item.event.end:
                         event_item.event.end += daysdelta
-                    weekno = int(event.y / self.day_height)
-                    day_no = int(event.x / self.day_width)
-                    event_item.y = weekno * self.day_height
-                    event_item.y += int(self.line_height) + 1  # padding-top
-                    event_item.x = day_no * self.day_width + 2  # padding-left
-                    item_height = self.line_height + 2  # 2px between items
+                    weekno = int(event.y / self._day_height)
+                    day_no = int(event.x / self._day_width)
+                    event_item.y = weekno * self._day_height
+                    event_item.y += int(self._line_height) + 1  # padding-top
+                    event_item.x = day_no * self._day_width + 2  # padding-left
+                    item_height = self._line_height + 2  # 2px between items
                     while event_item.y < event.y:
                         event_item.y += item_height
                     event_item.y -= item_height
@@ -777,50 +782,50 @@ class Calendar(goocanvas.Canvas):
         self.emit('event-released', event_item.event)
 
     def _stop_drag_and_drop(self):
-        self.drag_x = None
-        self.drag_y = None
-        self.drag_height = 0
-        self.drag_start_date = None
-        self.drag_date = None
+        self._drag_x = None
+        self._drag_y = None
+        self._drag_height = 0
+        self._drag_start_date = None
+        self._drag_date = None
         self.set_has_tooltip(True)
 
     def on_event_item_motion_notified(self, event_item, rect, event):
-        if self.drag_x and self.drag_y:
+        if self._drag_x and self._drag_y:
             # We are currently drag and dropping this event item
-            diff_y = event.y - self.drag_y
-            self.drag_x = event.x
-            self.drag_y = event.y
-            self.drag_height += diff_y
+            diff_y = event.y - self._drag_y
+            self._drag_x = event.x
+            self._drag_y = event.y
+            self._drag_height += diff_y
 
             cur_pointed_date = self.get_cur_pointed_date(event.x, event.y)
-            daysdelta = cur_pointed_date - self.drag_date
+            daysdelta = cur_pointed_date - self._drag_date
             if self.zoom == 'month':
-                if cur_pointed_date != self.drag_date:
+                if cur_pointed_date != self._drag_date:
                     event_item.event.start += daysdelta
                     if event_item.event.end:
                         event_item.event.end += daysdelta
                     nb_lines = int(round(float(daysdelta.days) / 7))
                     nb_columns = daysdelta.days - nb_lines * 7
-                    event_item.x += nb_columns * self.day_width
-                    self.drag_date = cur_pointed_date
+                    event_item.x += nb_columns * self._day_width
+                    self._drag_date = cur_pointed_date
                 event_item.y += diff_y
                 event_item.update()
                 return
 
             # Handle horizontal translation
-            if cur_pointed_date != self.drag_date:
-                self.drag_date = cur_pointed_date
+            if cur_pointed_date != self._drag_date:
+                self._drag_date = cur_pointed_date
                 event_item.event.start += daysdelta
                 if event_item.event.end:
                     event_item.event.end += daysdelta
-                event_item.x += daysdelta.days * self.day_width
+                event_item.x += daysdelta.days * self._day_width
 
             if event_item.event.multidays or event_item.event.all_day:
                 event_item.update()
                 return
 
             # Compute vertical translation
-            diff_minutes = int(round(self.drag_height / self.minute_height))
+            diff_minutes = int(round(self._drag_height / self.minute_height))
             diff_time = datetime.timedelta(minutes=diff_minutes)
             old_start = event_item.event.start
             new_start = old_start + diff_time
@@ -854,7 +859,7 @@ class Calendar(goocanvas.Canvas):
             pxdelta = (timedelta.total_seconds() / 60 * self.minute_height)
             event_item.y += pxdelta
             event_item.update()
-            self.drag_height -= pxdelta
+            self._drag_height -= pxdelta
 
 gobject.signal_new('event-pressed',
     Calendar,
@@ -906,7 +911,7 @@ class DayItem(goocanvas.Group):
     def __init__(self, cal, **kwargs):
         super(DayItem, self).__init__()
 
-        self.cal = cal
+        self._cal = cal
         self.x = kwargs.get('x', 0)
         self.y = kwargs.get('y', 0)
         self.width = kwargs.get('width', 0)
@@ -936,7 +941,7 @@ class DayItem(goocanvas.Group):
         week_day = calendar.weekday(*date_tuple)
         day_name = calendar.day_name[week_day]
         caption = '%s %s' % (date_tuple[2], day_name)
-        style = self.cal.get_style()
+        style = self._cal.get_style()
         font_descr = style.font_desc.copy()
         font = font_descr.to_string()
         self.text.set_property('font', font)
@@ -1013,7 +1018,7 @@ class EventItem(goocanvas.Group):
     def __init__(self, cal, **kwargs):
         super(EventItem, self).__init__()
 
-        self.cal = cal
+        self._cal = cal
         self.x = kwargs.get('x')
         self.y = kwargs.get('y')
         self.width = kwargs.get('width')
@@ -1029,7 +1034,7 @@ class EventItem(goocanvas.Group):
         # Create canvas items.
         self.box = goocanvas.Rect(parent=self)
         self.text = goocanvas.Text(parent=self)
-        style = self.cal.get_style()
+        style = self._cal.get_style()
         font_descr = style.font_desc.copy()
         self.font = font_descr.to_string()
         self.text.set_property('font', self.font)
@@ -1040,7 +1045,7 @@ class EventItem(goocanvas.Group):
             self.update()
 
     def update(self):
-        if (self.event.all_day or self.cal.zoom == "month"
+        if (self.event.all_day or self._cal.zoom == "month"
                 or self.event.multidays):
             self.update_all_day_event()
         else:
@@ -1189,7 +1194,7 @@ class TimelineItem(goocanvas.Group):
     def __init__(self, cal, **kwargs):
         super(TimelineItem, self).__init__()
 
-        self.cal = cal
+        self._cal = cal
         self.x = kwargs.get('x')
         self.y = kwargs.get('y')
         self.line_color = kwargs.get('line_color')
@@ -1199,12 +1204,12 @@ class TimelineItem(goocanvas.Group):
         self.width = 0
 
         # Create canvas items.
-        self.timeline_rect = {}
-        self.timeline_text = {}
+        self._timeline_rect = {}
+        self._timeline_text = {}
         for n in range(24):
             caption = datetime.time(n).strftime(self.time_format)
-            self.timeline_rect[n] = goocanvas.Rect(parent=self)
-            self.timeline_text[n] = goocanvas.Text(parent=self, text=caption)
+            self._timeline_rect[n] = goocanvas.Rect(parent=self)
+            self._timeline_text[n] = goocanvas.Text(parent=self, text=caption)
 
         if self.x is not None:
             self.update()
@@ -1214,7 +1219,7 @@ class TimelineItem(goocanvas.Group):
         logical_height = 0
         self.ink_padding_top = 0
         for n in range(24):
-            natural_extents = self.timeline_text[n].get_natural_extents()
+            natural_extents = self._timeline_text[n].get_natural_extents()
             logical_rect = natural_extents[1]
             logical_height = max(logical_height, logical_rect[3])
             ink_rect = natural_extents[0]
@@ -1228,7 +1233,7 @@ class TimelineItem(goocanvas.Group):
         line_height = self.min_line_height
         if line_height < self.height / 24:
             line_height = self.height / 24
-            pango_size = self.cal.get_style().font_desc.get_size()
+            pango_size = self._cal.get_style().font_desc.get_size()
             padding_top = (line_height - pango_size / pango.SCALE) / 2
             padding_top -= int(math.ceil(float(self.ink_padding_top) /
                 pango.SCALE))
@@ -1236,13 +1241,13 @@ class TimelineItem(goocanvas.Group):
         return line_height
 
     def _compute_width(self):
-        style = self.cal.get_style()
+        style = self._cal.get_style()
         font = style.font_desc
         ink_padding_left = 0
         ink_max_width = 0
         for n in range(24):
-            self.timeline_text[n].set_property('font', font)
-            natural_extents = self.timeline_text[n].get_natural_extents()
+            self._timeline_text[n].set_property('font', font)
+            natural_extents = self._timeline_text[n].get_natural_extents()
             ink_rect = natural_extents[0]
             ink_padding_left = max(ink_padding_left, ink_rect[0])
             ink_max_width = max(ink_max_width, ink_rect[2])
@@ -1255,8 +1260,8 @@ class TimelineItem(goocanvas.Group):
 
         # Draw the timeline.
         for n in range(24):
-            rect = self.timeline_rect[n]
-            text = self.timeline_text[n]
+            rect = self._timeline_rect[n]
+            text = self._timeline_text[n]
             y = self.y + n * line_height
 
             rect.set_property('x', self.x)

@@ -56,7 +56,7 @@ class EventStore(gobject.GObject):
 
     def __init__(self):
         super(EventStore, self).__init__()
-        self.next_event_id = 0
+        self._next_event_id = 0
         self.events = {}
 
     def remove(self, event):
@@ -69,14 +69,14 @@ class EventStore(gobject.GObject):
     def add(self, event):
         assert event is not None
         assert event.id is None
-        self.events[self.next_event_id] = event
-        event.id = self.next_event_id
-        self.next_event_id += 1
+        self.events[self._next_event_id] = event
+        event.id = self._next_event_id
+        self._next_event_id += 1
         self.emit('event-added', event)
 
     def clear(self):
         self.events.clear()
-        self.next_event_id = 0
+        self._next_event_id = 0
         self.emit('events-cleared')
 
     def get_events(self, start=None, end=None):
