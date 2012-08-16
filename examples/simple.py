@@ -18,10 +18,10 @@ def on_day_selected(calendar, day):
 def on_key_pressed(widget, event):
     if (event.state & gtk.gdk.CONTROL_MASK and
             event.keyval == gtk.gdk.keyval_from_name('l')):
-        if widget.zoom == 'week':
-            widget.set_zoom('month')
+        if widget.view == 'week':
+            widget.set_view('month')
         else:
-            widget.set_zoom('week')
+            widget.set_view('week')
 
 window = gtk.Window()
 event_store = goocalendar.EventStore()

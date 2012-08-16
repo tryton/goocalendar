@@ -16,10 +16,10 @@ from .util import left_click
 
 
 class Calendar(goocanvas.Canvas):
-    ZOOM_LEVELS = ["month", "week"]
+    AVAILABLE_VIEWS = ["month", "week"]
     MIN_PER_LEVEL = 15  # Number of minutes per graduation for drag and drop
 
-    def __init__(self, event_store=None, zoom="month", time_format="%H:%M"):
+    def __init__(self, event_store=None, view="month", time_format="%H:%M"):
         super(Calendar, self).__init__()
         self._cal = calendar.Calendar(calendar.SUNDAY)
         self._today = time.localtime(time.time())[:3]
@@ -44,8 +44,8 @@ class Calendar(goocanvas.Canvas):
         self._day_width = 0
         self._day_height = 0
         self._event_items = []
-        assert zoom in self.ZOOM_LEVELS
-        self.zoom = zoom
+        assert view in self.AVAILABLE_VIEWS
+        self.view = view
         self.selected_date = self._today
         self.time_format = time_format
         self.set_bounds(0, 0, 200, 200)
@@ -85,9 +85,9 @@ class Calendar(goocanvas.Canvas):
         old_day = self._selected_day
         self.selected_date = new_date[:3]
         page_changed = False
-        if self.zoom == "month":
+        if self.view == "month":
             page_changed = old_date[:2] != new_date[:2]
-        elif self.zoom == "week":
+        elif self.view == "week":
             old_first_weekday = util.first_day_of_week(self._cal, old_date)
             new_first_weekday = util.first_day_of_week(self._cal, new_date)
             page_changed = old_first_weekday != new_first_weekday
@@ -132,28 +132,28 @@ class Calendar(goocanvas.Canvas):
 
     def select_previous_page(self):
         date = datetime.datetime(*self.selected_date)
-        if self.zoom == "month":
+        if self.view == "month":
             selected_date = \
                 util.previous_month(self._cal, date).timetuple()[:3]
-        elif self.zoom == "week":
+        elif self.view == "week":
             selected_date = util.previous_week(self._cal, date).timetuple()[:3]
         self.select_from_tuple(selected_date)
 
     def select_next_page(self):
         date = datetime.datetime(*self.selected_date)
-        if self.zoom == "month":
+        if self.view == "month":
             date = util.next_month(self._cal, date)
-        elif self.zoom == "week":
+        elif self.view == "week":
             date = util.next_week(self._cal, date)
         self.select(date)
 
-    def set_zoom(self, level):
-        if level == self.zoom:
+    def set_view(self, level):
+        if level == self.view:
             return
-        assert level in self.ZOOM_LEVELS
-        self.zoom = level
+        assert level in self.AVAILABLE_VIEWS
+        self.view = level
         self.update()
-        self.emit('zoom_changed', self.zoom)
+        self.emit('view_changed', self.view)
 
     def get_selected_date(self):
         return datetime.datetime(*self.selected_date)
@@ -194,9 +194,9 @@ class Calendar(goocanvas.Canvas):
         if not self._realized:
             return
         self.draw_background()
-        if self.zoom == "month":
+        if self.view == "month":
             self.draw_month()
-        elif self.zoom == "week":
+        elif self.view == "week":
             self.draw_week()
         self.draw_events()
 
@@ -379,7 +379,7 @@ class Calendar(goocanvas.Canvas):
         assert start <= end
         days = []
         for weekno, week in enumerate(weeks):
-            if self.zoom == "week":
+            if self.view == "week":
                 weekdays = [date.timetuple()[:3] for date in week]
                 if self.selected_date not in weekdays:
                     continue
@@ -417,7 +417,7 @@ class Calendar(goocanvas.Canvas):
         if not self._event_store:
             return
 
-        if self.zoom == "month":
+        if self.view == "month":
             weeks = util.my_monthdatescalendar(self._cal, *self.selected_date)
             dates = []
             for week in weeks:
@@ -440,7 +440,7 @@ class Calendar(goocanvas.Canvas):
         for event in events:
             event.event_items = []
             # Handle non-all-day events differently in week mode.
-            if (self.zoom == "week" and not event.all_day
+            if (self.view == "week" and not event.all_day
                     and not event.multidays):
                 non_all_day_events.append(event)
                 continue
@@ -517,7 +517,7 @@ class Calendar(goocanvas.Canvas):
                     event_item.type = 'leftright'
                 event_item.update()
 
-        if self.zoom != "week":
+        if self.view != "week":
             return
 
         # Redraw the timeline.
@@ -667,10 +667,10 @@ class Calendar(goocanvas.Canvas):
         """
         # Get current week
         weeks = util.my_monthdatescalendar(self._cal, *self.selected_date)
-        if self.zoom == 'week':
+        if self.view == 'week':
             cur_week, = (week for week in weeks for date in week
                 if self.selected_date[:3] == date.timetuple()[:3])
-        elif self.zoom == 'month':
+        elif self.view == 'month':
             max_height = 6 * self._day_height
             if y < 0:
                 weekno = 0
@@ -687,7 +687,7 @@ class Calendar(goocanvas.Canvas):
         elif x > max_width:
             day_no = 6
         else:
-            offset_x = self._timeline.width if self.zoom == 'week' else 0
+            offset_x = self._timeline.width if self.view == 'week' else 0
             day_no = int((x - offset_x) / self._day_width)
         return cur_week[day_no]
 
@@ -707,7 +707,7 @@ class Calendar(goocanvas.Canvas):
         event_item.width = self._day_width - 6  # Biggest event width
         event_date = event_item.event.start.date()
         daysdelta = self._drag_start_date - event_date
-        if self.zoom == 'week':
+        if self.view == 'week':
             event_item.x = event_item.left_border
             if ((event_item.event.all_day or event_item.event.multidays)
                 and self._drag_start_date != event_date):
@@ -749,7 +749,7 @@ class Calendar(goocanvas.Canvas):
                     if event_item.event.end:
                         event_item.event.end += delta
                 event_item.no_caption = False
-        elif self.zoom == 'month':
+        elif self.view == 'month':
             for item in event_item.event.event_items:
                 if item != event_item:
                     self.get_root_item().remove_child(item)
@@ -799,7 +799,7 @@ class Calendar(goocanvas.Canvas):
 
             cur_pointed_date = self.get_cur_pointed_date(event.x, event.y)
             daysdelta = cur_pointed_date - self._drag_date
-            if self.zoom == 'month':
+            if self.view == 'month':
                 if cur_pointed_date != self._drag_date:
                     event_item.event.start += daysdelta
                     if event_item.event.end:
@@ -891,7 +891,7 @@ gobject.signal_new('day-selected',
     gobject.SIGNAL_RUN_FIRST,
     gobject.TYPE_NONE,
     (gobject.TYPE_PYOBJECT,))
-gobject.signal_new('zoom_changed',
+gobject.signal_new('view_changed',
     Calendar,
     gobject.SIGNAL_RUN_FIRST,
     gobject.TYPE_NONE,
@@ -1045,7 +1045,7 @@ class EventItem(goocanvas.Group):
             self.update()
 
     def update(self):
-        if (self.event.all_day or self._cal.zoom == "month"
+        if (self.event.all_day or self._cal.view == "month"
                 or self.event.multidays):
             self.update_all_day_event()
         else:
