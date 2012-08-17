@@ -32,7 +32,7 @@ class Calendar(goocanvas.Canvas):
         self._event_removed_sigid = None
         self._event_added_sigid = None
         self._events_cleared_sigid = None
-        self.set_event_store(event_store)
+        self.event_store = event_store
         self._drag_start_date = None
         self._drag_date = None
         self._drag_x = None
@@ -158,7 +158,12 @@ class Calendar(goocanvas.Canvas):
     def get_selected_date(self):
         return datetime.datetime(*self.selected_date)
 
-    def set_event_store(self, event_store):
+    @property
+    def event_store(self):
+        return self._event_store
+
+    @event_store.setter
+    def event_store(self, event_store):
         # Disconnect previous event store if any
         if self._event_store:
             self._event_store.disconnect(self._event_removed_sigid)
