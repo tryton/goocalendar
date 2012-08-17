@@ -130,7 +130,7 @@ class Calendar(goocanvas.Canvas):
     def select(self, new_time):
         self.select_from_tuple(new_time.timetuple())
 
-    def select_previous_page(self):
+    def previous_page(self):
         date = datetime.datetime(*self.selected_date)
         if self.view == "month":
             selected_date = \
@@ -139,7 +139,7 @@ class Calendar(goocanvas.Canvas):
             selected_date = util.previous_week(self._cal, date).timetuple()[:3]
         self.select_from_tuple(selected_date)
 
-    def select_next_page(self):
+    def next_page(self):
         date = datetime.datetime(*self.selected_date)
         if self.view == "month":
             date = util.next_month(self._cal, date)
