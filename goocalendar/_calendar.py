@@ -19,9 +19,9 @@ class Calendar(goocanvas.Canvas):
     AVAILABLE_VIEWS = ["month", "week"]
     MIN_PER_LEVEL = 15  # Number of minutes per graduation for drag and drop
 
-    def __init__(self, event_store=None, view="month", time_format="%H:%M"):
+    def __init__(self, event_store=None, view="month", time_format="%H:%M",
+            firstweekday=calendar.SUNDAY):
         super(Calendar, self).__init__()
-        self._cal = calendar.Calendar(calendar.SUNDAY)
         self._today = time.localtime(time.time())[:3]
         self._selected_day = None
         self._bg_rect = None
@@ -33,6 +33,7 @@ class Calendar(goocanvas.Canvas):
         self._event_added_sigid = None
         self._events_cleared_sigid = None
         self.event_store = event_store
+        self.firstweekday = firstweekday
         self._drag_start_date = None
         self._drag_date = None
         self._drag_x = None
@@ -81,6 +82,7 @@ class Calendar(goocanvas.Canvas):
             self.days.append(box)
 
     def select_from_tuple(self, new_date):
+        cal = calendar.Calendar(self.firstweekday)
         old_date = self.selected_date
         old_day = self._selected_day
         self.selected_date = new_date[:3]
@@ -88,8 +90,8 @@ class Calendar(goocanvas.Canvas):
         if self.view == "month":
             page_changed = old_date[:2] != new_date[:2]
         elif self.view == "week":
-            old_first_weekday = util.first_day_of_week(self._cal, old_date)
-            new_first_weekday = util.first_day_of_week(self._cal, new_date)
+            old_first_weekday = util.first_day_of_week(cal, old_date)
+            new_first_weekday = util.first_day_of_week(cal, new_date)
             page_changed = old_first_weekday != new_first_weekday
 
         # This is slow: When the month was changed we need to update
@@ -102,7 +104,7 @@ class Calendar(goocanvas.Canvas):
 
         # This is fast: Update only the old and newly selected days.
         # Find the canvas item that corresponds to the new date.
-        weeks = self._cal.monthdayscalendar(*new_date[:2])
+        weeks = cal.monthdayscalendar(*new_date[:2])
         found = -1
         for weekno, week in enumerate(weeks):
             for dayno, day in enumerate(week):
@@ -131,20 +133,22 @@ class Calendar(goocanvas.Canvas):
         self.select_from_tuple(new_time.timetuple())
 
     def previous_page(self):
+        cal = calendar.Calendar(self.firstweekday)
         date = datetime.datetime(*self.selected_date)
         if self.view == "month":
             selected_date = \
-                util.previous_month(self._cal, date).timetuple()[:3]
+                util.previous_month(cal, date).timetuple()[:3]
         elif self.view == "week":
-            selected_date = util.previous_week(self._cal, date).timetuple()[:3]
+            selected_date = util.previous_week(cal, date).timetuple()[:3]
         self.select_from_tuple(selected_date)
 
     def next_page(self):
+        cal = calendar.Calendar(self.firstweekday)
         date = datetime.datetime(*self.selected_date)
         if self.view == "month":
-            date = util.next_month(self._cal, date)
+            date = util.next_month(cal, date)
         elif self.view == "week":
-            date = util.next_week(self._cal, date)
+            date = util.next_week(cal, date)
         self.select(date)
 
     def set_view(self, level):
@@ -236,7 +240,8 @@ class Calendar(goocanvas.Canvas):
             self.set_size_request(new_width, height)  # Minimum widget size
 
         # Redraw all days.
-        weeks = util.my_monthdatescalendar(self._cal, *self.selected_date)
+        cal = calendar.Calendar(self.firstweekday)
+        weeks = util.my_monthdatescalendar(cal, *self.selected_date)
         for weekno, week in enumerate(weeks):
             # Hide all days that are not part of the current week.
             weekdays = [date.timetuple()[:3] for date in week]
@@ -310,7 +315,8 @@ class Calendar(goocanvas.Canvas):
 
         # Draw the grid.
         y_pos = 0
-        weeks = util.my_monthdatescalendar(self._cal, *self.selected_date)
+        cal = calendar.Calendar(self.firstweekday)
+        weeks = util.my_monthdatescalendar(cal, *self.selected_date)
         for weekno, week in enumerate(weeks):
             for dayno, date in enumerate(week):
                 # The color depends on whether each day is part of the
@@ -363,7 +369,8 @@ class Calendar(goocanvas.Canvas):
             self.set_size_request(new_width, new_height)
 
     def _get_day_item(self, find_date):
-        weeks = util.my_monthdatescalendar(self._cal, *find_date.timetuple())
+        cal = calendar.Calendar(self.firstweekday)
+        weeks = util.my_monthdatescalendar(cal, *find_date.timetuple())
         for weekno, week in enumerate(weeks):
             for dayno, date in enumerate(week):
                 if date == find_date:
@@ -377,7 +384,8 @@ class Calendar(goocanvas.Canvas):
         place.
         Days that are currently not in the view are not returned.
         """
-        weeks = util.my_monthdatescalendar(self._cal, *self.selected_date)
+        cal = calendar.Calendar(self.firstweekday)
+        weeks = util.my_monthdatescalendar(cal, *self.selected_date)
         start = event.start.timetuple()[:3]
         end = event.end if event.end else event.start
         end = end.timetuple()[:3]
@@ -422,13 +430,14 @@ class Calendar(goocanvas.Canvas):
         if not self._event_store:
             return
 
+        cal = calendar.Calendar(self.firstweekday)
         if self.view == "month":
-            weeks = util.my_monthdatescalendar(self._cal, *self.selected_date)
+            weeks = util.my_monthdatescalendar(cal, *self.selected_date)
             dates = []
             for week in weeks:
                 dates += week
         else:
-            dates = util.my_weekdatescalendar(self._cal, *self.selected_date)
+            dates = util.my_weekdatescalendar(cal, *self.selected_date)
 
         # Retrieve a list of all events in the current time span,
         # and sort them by event length.
@@ -473,7 +482,7 @@ class Calendar(goocanvas.Canvas):
             week_end = 0
             while week_end < len(days):
                 day = days[week_start]
-                weekday = (day.date.weekday() - self._cal.firstweekday) % 7
+                weekday = (day.date.weekday() - self.firstweekday) % 7
                 week_end = week_start + (7 - weekday)
                 week = days[week_start:week_end]
                 weeks.append(week)
@@ -671,7 +680,8 @@ class Calendar(goocanvas.Canvas):
         Return the date of the day_item pointed by two coordinates [x,y]
         """
         # Get current week
-        weeks = util.my_monthdatescalendar(self._cal, *self.selected_date)
+        cal = calendar.Calendar(self.firstweekday)
+        weeks = util.my_monthdatescalendar(cal, *self.selected_date)
         if self.view == 'week':
             cur_week, = (week for week in weeks for date in week
                 if self.selected_date[:3] == date.timetuple()[:3])
