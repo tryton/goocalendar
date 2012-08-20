@@ -264,7 +264,7 @@ class Calendar(goocanvas.Canvas):
                 box.width = self._day_width - 2
                 box.height = self._day_height
                 box.type = 'week'
-                box.date = date
+                box.date = current_date
                 box.full_border = selected
                 box.border_color = the_border_color
                 box.body_color = the_body_color
