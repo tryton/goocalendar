@@ -73,7 +73,7 @@ event = goocalendar.Event('Four-day Event',
     text_color='white')
 event_store.add(event)
 
-calendar.select_from_tuple((2007, 10, 8))
+calendar.select(datetime.date(2007, 10, 8))
 window.add(calendar)
 window.set_size_request(400, 400)
 window.show_all()

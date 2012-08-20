@@ -1,6 +1,5 @@
 #This file is part of GooCalendar.  The COPYRIGHT file at the top level of
 #this repository contains the full copyright notices and license terms.
-import time
 import datetime
 import calendar
 import math
@@ -22,7 +21,6 @@ class Calendar(goocanvas.Canvas):
     def __init__(self, event_store=None, view="month", time_format="%H:%M",
             firstweekday=calendar.SUNDAY):
         super(Calendar, self).__init__()
-        self._today = time.localtime(time.time())[:3]
         self._selected_day = None
         self._bg_rect = None
         self._timeline = None
@@ -47,7 +45,7 @@ class Calendar(goocanvas.Canvas):
         self._event_items = []
         assert view in self.AVAILABLE_VIEWS
         self.view = view
-        self.selected_date = self._today
+        self.selected_date = datetime.date.today()
         self.time_format = time_format
         self.set_bounds(0, 0, 200, 200)
         self.set_flags(gtk.CAN_FOCUS)
@@ -81,14 +79,16 @@ class Calendar(goocanvas.Canvas):
                 self.on_day_item_button_press_event)
             self.days.append(box)
 
-    def select_from_tuple(self, new_date):
+    def select(self, new_date):
         cal = calendar.Calendar(self.firstweekday)
+        if hasattr(new_date, 'date'):
+            new_date = new_date.date()
         old_date = self.selected_date
         old_day = self._selected_day
-        self.selected_date = new_date[:3]
+        self.selected_date = new_date
         page_changed = False
         if self.view == "month":
-            page_changed = old_date[:2] != new_date[:2]
+            page_changed = not util.same_month(old_date, new_date)
         elif self.view == "week":
             old_first_weekday = util.first_day_of_week(cal, old_date)
             new_first_weekday = util.first_day_of_week(cal, new_date)
@@ -104,11 +104,11 @@ class Calendar(goocanvas.Canvas):
 
         # This is fast: Update only the old and newly selected days.
         # Find the canvas item that corresponds to the new date.
-        weeks = cal.monthdayscalendar(*new_date[:2])
+        weeks = cal.monthdayscalendar(new_date.year, new_date.month)
         found = -1
         for weekno, week in enumerate(weeks):
             for dayno, day in enumerate(week):
-                if day == new_date[2]:
+                if day == new_date.day:
                     found = weekno * 7 + dayno
                     break
             if found != -1:
@@ -129,27 +129,21 @@ class Calendar(goocanvas.Canvas):
         if old_day != new_day:
             self.emit('day-selected', self.get_selected_date())
 
-    def select(self, new_time):
-        self.select_from_tuple(new_time.timetuple())
-
     def previous_page(self):
         cal = calendar.Calendar(self.firstweekday)
-        date = datetime.datetime(*self.selected_date)
         if self.view == "month":
-            selected_date = \
-                util.previous_month(cal, date).timetuple()[:3]
+            new_date = util.previous_month(cal, self.selected_date)
         elif self.view == "week":
-            selected_date = util.previous_week(cal, date).timetuple()[:3]
-        self.select_from_tuple(selected_date)
+            new_date = util.previous_week(cal, self.selected_date)
+        self.select(new_date)
 
     def next_page(self):
         cal = calendar.Calendar(self.firstweekday)
-        date = datetime.datetime(*self.selected_date)
         if self.view == "month":
-            date = util.next_month(cal, date)
+            new_date = util.next_month(cal, self.selected_date)
         elif self.view == "week":
-            date = util.next_week(cal, date)
-        self.select(date)
+            new_date = util.next_month(cal, self.selected_date)
+        self.select(new_date)
 
     def set_view(self, level):
         if level == self.view:
@@ -160,7 +154,7 @@ class Calendar(goocanvas.Canvas):
         self.emit('view_changed', self.view)
 
     def get_selected_date(self):
-        return datetime.datetime(*self.selected_date)
+        return self.selected_date
 
     @property
     def event_store(self):
@@ -241,26 +235,24 @@ class Calendar(goocanvas.Canvas):
 
         # Redraw all days.
         cal = calendar.Calendar(self.firstweekday)
-        weeks = util.my_monthdatescalendar(cal, *self.selected_date)
+        weeks = util.my_monthdatescalendar(cal, self.selected_date)
         for weekno, week in enumerate(weeks):
             # Hide all days that are not part of the current week.
-            weekdays = [date.timetuple()[:3] for date in week]
-            if self.selected_date[:3] not in weekdays:
+            if self.selected_date not in week:
                 for dayno, date in enumerate(week):
                     box = self.days[weekno * 7 + dayno]
                     box.set_property('visibility', goocanvas.ITEM_INVISIBLE)
                 continue
 
             # Draw the days that are part of the current week.
-            for dayno, date in enumerate(week):
+            for dayno, current_date in enumerate(week):
                 # Highlight the day according to it's selection.
-                current_date = date.timetuple()[:3]
                 selected = current_date == self.selected_date
                 if selected:
                     the_border_color = selected_border_color
                 else:
                     the_border_color = border_color
-                if current_date == self._today:
+                if current_date == datetime.date.today():
                     the_body_color = today_body_color
                 else:
                     the_body_color = body_color
@@ -316,13 +308,12 @@ class Calendar(goocanvas.Canvas):
         # Draw the grid.
         y_pos = 0
         cal = calendar.Calendar(self.firstweekday)
-        weeks = util.my_monthdatescalendar(cal, *self.selected_date)
+        weeks = util.my_monthdatescalendar(cal, self.selected_date)
         for weekno, week in enumerate(weeks):
             for dayno, date in enumerate(week):
                 # The color depends on whether each day is part of the
                 # current month.
-                year, month, day = date.timetuple()[:3]
-                if (year, month) != self.selected_date[:2]:
+                if (not util.same_month(date, self.selected_date)):
                     the_border_color = inactive_border_color
                     the_text_color = inactive_text_color
                 else:
@@ -330,11 +321,10 @@ class Calendar(goocanvas.Canvas):
                     the_text_color = text_color
 
                 # Highlight the day according to it's selection.
-                current_date = date.timetuple()[:3]
-                selected = current_date == self.selected_date
+                selected = date == self.selected_date
                 if selected:
                     the_border_color = selected_border_color
-                if current_date == self._today:
+                if date == datetime.date.today():
                     the_body_color = today_body_color
                 else:
                     the_body_color = body_color
@@ -370,7 +360,7 @@ class Calendar(goocanvas.Canvas):
 
     def _get_day_item(self, find_date):
         cal = calendar.Calendar(self.firstweekday)
-        weeks = util.my_monthdatescalendar(cal, *find_date.timetuple())
+        weeks = util.my_monthdatescalendar(cal, find_date)
         for weekno, week in enumerate(weeks):
             for dayno, date in enumerate(week):
                 if date == find_date:
@@ -385,19 +375,16 @@ class Calendar(goocanvas.Canvas):
         Days that are currently not in the view are not returned.
         """
         cal = calendar.Calendar(self.firstweekday)
-        weeks = util.my_monthdatescalendar(cal, *self.selected_date)
-        start = event.start.timetuple()[:3]
-        end = event.end if event.end else event.start
-        end = end.timetuple()[:3]
+        weeks = util.my_monthdatescalendar(cal, self.selected_date)
+        start = event.start.date()
+        end = event.end.date() if event.end else event.start.date()
         assert start <= end
         days = []
         for weekno, week in enumerate(weeks):
             if self.view == "week":
-                weekdays = [date.timetuple()[:3] for date in week]
-                if self.selected_date not in weekdays:
+                if self.selected_date not in week:
                     continue
             for dayno, date in enumerate(week):
-                date = date.timetuple()[:3]
                 if date >= start and date <= end:
                     days.append(self.days[weekno * 7 + dayno])
                 if date == end:
@@ -432,19 +419,20 @@ class Calendar(goocanvas.Canvas):
 
         cal = calendar.Calendar(self.firstweekday)
         if self.view == "month":
-            weeks = util.my_monthdatescalendar(cal, *self.selected_date)
+            weeks = util.my_monthdatescalendar(cal, self.selected_date)
             dates = []
             for week in weeks:
                 dates += week
         else:
-            dates = util.my_weekdatescalendar(cal, *self.selected_date)
+            dates = util.my_weekdatescalendar(cal, self.selected_date)
 
         # Retrieve a list of all events in the current time span,
         # and sort them by event length.
         onedaydelta = (datetime.timedelta(days=1)
             - datetime.timedelta(microseconds=1))
-        start = datetime.datetime(*dates[0].timetuple()[:3])
-        end = datetime.datetime(*dates[-1].timetuple()[:3]) + onedaydelta
+        start = datetime.datetime.combine(dates[0], datetime.time())
+        end = datetime.datetime.combine(dates[-1], datetime.time()) \
+            + onedaydelta
         events = self._event_store.get_events(start, end)
         events.sort(util.event_days, reverse=True)
 
@@ -558,8 +546,9 @@ class Calendar(goocanvas.Canvas):
 
         # Draw non-all-day events.
         for date in dates:
-            date_start = datetime.datetime(*date.timetuple()[:3])
-            date_end = date_start + datetime.timedelta(1)
+            date_start = datetime.datetime.combine(date, datetime.time())
+            date_end = (datetime.datetime.combine(date_start, datetime.time())
+                + datetime.timedelta(days=1))
             day = self._get_day_item(date)
             day_events = util.get_intersection_list(non_all_day_events,
                 date_start, date_end)
@@ -681,10 +670,10 @@ class Calendar(goocanvas.Canvas):
         """
         # Get current week
         cal = calendar.Calendar(self.firstweekday)
-        weeks = util.my_monthdatescalendar(cal, *self.selected_date)
+        weeks = util.my_monthdatescalendar(cal, self.selected_date)
         if self.view == 'week':
             cur_week, = (week for week in weeks for date in week
-                if self.selected_date[:3] == date.timetuple()[:3])
+                if self.selected_date == date)
         elif self.view == 'month':
             max_height = 6 * self._day_height
             if y < 0:
@@ -856,7 +845,7 @@ class Calendar(goocanvas.Canvas):
                 return
 
             # Apply vertical translation
-            midnight = datetime.time(0)
+            midnight = datetime.time()
             old_start_midnight = datetime.datetime.combine(old_start, midnight)
             onedaydelta = datetime.timedelta(days=1)
             next_day_midnight = old_start_midnight + onedaydelta
@@ -952,10 +941,9 @@ class DayItem(goocanvas.Group):
         if not self.date:
             return
 
-        date_tuple = self.date.timetuple()[:3]
-        week_day = calendar.weekday(*date_tuple)
+        week_day = self.date.weekday()
         day_name = calendar.day_name[week_day]
-        caption = '%s %s' % (date_tuple[2], day_name)
+        caption = '%s %s' % (self.date.day, day_name)
         style = self._cal.get_style()
         font_descr = style.font_desc.copy()
         font = font_descr.to_string()

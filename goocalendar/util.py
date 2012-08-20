@@ -2,23 +2,21 @@
 #this repository contains the full copyright notices and license terms.
 import sys
 import datetime
-import calendar
 
 
-def my_weekdatescalendar(cal, *date):
-    weeks = cal.monthdatescalendar(*date[:2])
+def my_weekdatescalendar(cal, date):
+    weeks = cal.monthdatescalendar(date.year, date.month)
     for weekno, week in enumerate(weeks):
         # Hide all days that are not part of the current week.
-        weekdays = [d.timetuple()[:3] for d in week]
-        if date[:3] in weekdays:
+        if date in week:
             return week
     raise Exception('No such week')
 
 
-def my_monthdatescalendar(cal, *args):
+def my_monthdatescalendar(cal, date):
     # Months that have only five weeks are filled with another week from
     # the following month.
-    weeks = cal.monthdatescalendar(*args[:2])
+    weeks = cal.monthdatescalendar(date.year, date.month)
     if len(weeks) < 6:
         last_day = weeks[-1][-1]
         offset = datetime.timedelta(1)
@@ -32,9 +30,8 @@ def my_monthdatescalendar(cal, *args):
 
 def first_day_of_week(cal, date):
     firstweekday = cal.firstweekday
-    year, month, day = date[:3]
-    day_shift = (calendar.weekday(year, month, day) + 7 - firstweekday) % 7
-    return datetime.datetime(year, month, day) - datetime.timedelta(day_shift)
+    day_shift = (date.weekday() + 7 - firstweekday) % 7
+    return date - datetime.timedelta(day_shift)
 
 
 def previous_month(cal, date):
@@ -61,6 +58,10 @@ def next_month(cal, date):
     if day not in next_month_days:
         day = max(next_month_days)
     return datetime.datetime(year, month, day)
+
+
+def same_month(date1, date2):
+    return (date1.year == date2.year and date1.month == date2.month)
 
 
 def previous_week(cal, date):
