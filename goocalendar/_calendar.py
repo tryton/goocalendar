@@ -98,8 +98,8 @@ class Calendar(goocanvas.Canvas):
         # the entire canvas.
         if old_day is None or page_changed:
             self.update()
-            self.emit('day-selected', self.get_selected_date())
-            self.emit('page-changed', self.get_selected_date())
+            self.emit('day-selected', self.selected_date)
+            self.emit('page-changed', self.selected_date)
             return
 
         # This is fast: Update only the old and newly selected days.
@@ -127,7 +127,7 @@ class Calendar(goocanvas.Canvas):
         new_day.update()
         self._selected_day = new_day
         if old_day != new_day:
-            self.emit('day-selected', self.get_selected_date())
+            self.emit('day-selected', self.selected_date)
 
     def previous_page(self):
         cal = calendar.Calendar(self.firstweekday)
@@ -152,9 +152,6 @@ class Calendar(goocanvas.Canvas):
         self.view = level
         self.update()
         self.emit('view_changed', self.view)
-
-    def get_selected_date(self):
-        return self.selected_date
 
     @property
     def event_store(self):
@@ -628,7 +625,7 @@ class Calendar(goocanvas.Canvas):
         self.update()
 
     def on_key_press_event(self, widget, event):
-        date = self.get_selected_date()
+        date = self.selected_date
         if event.keyval == gtk.gdk.keyval_from_name('Up'):
             self.select(date - datetime.timedelta(7))
         elif event.keyval == gtk.gdk.keyval_from_name('Down'):
