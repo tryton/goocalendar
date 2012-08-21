@@ -151,7 +151,7 @@ class Calendar(goocanvas.Canvas):
         assert level in self.AVAILABLE_VIEWS
         self.view = level
         self.update()
-        self.emit('view_changed', self.view)
+        self.emit('view-changed', self.view)
 
     @property
     def event_store(self):
@@ -892,12 +892,12 @@ gobject.signal_new('day-selected',
     gobject.SIGNAL_RUN_FIRST,
     gobject.TYPE_NONE,
     (gobject.TYPE_PYOBJECT,))
-gobject.signal_new('view_changed',
+gobject.signal_new('view-changed',
     Calendar,
     gobject.SIGNAL_RUN_FIRST,
     gobject.TYPE_NONE,
     (gobject.TYPE_PYOBJECT,))
-gobject.signal_new('page_changed',
+gobject.signal_new('page-changed',
     Calendar,
     gobject.SIGNAL_RUN_FIRST,
     gobject.TYPE_NONE,
