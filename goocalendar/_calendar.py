@@ -641,7 +641,7 @@ class Calendar(goocanvas.Canvas):
         self.select(day.date)
 
         if self._is_double_click(event):
-            self.emit('day-activated', day)
+            self.emit('day-activated', day.date)
 
     def _is_double_click(self, event):
         gtk_settings = gtk.settings_get_default()
