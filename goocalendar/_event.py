@@ -57,25 +57,25 @@ class EventStore(gobject.GObject):
     def __init__(self):
         super(EventStore, self).__init__()
         self._next_event_id = 0
-        self.events = {}
+        self._events = {}
 
     def remove(self, event):
         assert event is not None
         if event.id is None:
             return
-        del self.events[event.id]
+        del self._events[event.id]
         self.emit('event-removed', event)
 
     def add(self, event):
         assert event is not None
         assert event.id is None
-        self.events[self._next_event_id] = event
+        self._events[self._next_event_id] = event
         event.id = self._next_event_id
         self._next_event_id += 1
         self.emit('event-added', event)
 
     def clear(self):
-        self.events.clear()
+        self._events.clear()
         self._next_event_id = 0
         self.emit('events-cleared')
 
@@ -85,9 +85,9 @@ class EventStore(gobject.GObject):
         and end times.
         """
         if not start and not end:
-            return self.events.values()
+            return self._events.values()
         events = []
-        for event in self.events.values():
+        for event in self._events.values():
             if util.event_intersects(event, start, end):
                 events.append(event)
         return events
