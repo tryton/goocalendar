@@ -68,11 +68,15 @@ class EventStore(gobject.GObject):
 
     def add(self, event):
         assert event is not None
-        assert event.id is None
-        self._events[self._next_event_id] = event
-        event.id = self._next_event_id
-        self._next_event_id += 1
-        self.emit('event-added', event)
+        self.add_events([event])
+
+    def add_events(self, events):
+        for event in events:
+            assert event.id is None
+            self._events[self._next_event_id] = event
+            event.id = self._next_event_id
+            self._next_event_id += 1
+        self.emit('event-added', events)
 
     def clear(self):
         self._events.clear()
