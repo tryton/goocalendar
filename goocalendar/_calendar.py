@@ -352,7 +352,7 @@ class Calendar(goocanvas.Canvas):
         new_width = int(7 * self._day_width)
         new_height = int(14 * box.line_height)
         if ((width != new_width and self._day_width == day_width_min)
-            or new_height != height):
+                or new_height != height):
             self.set_size_request(new_width, new_height)
 
     def _get_day_item(self, find_date):
@@ -711,7 +711,7 @@ class Calendar(goocanvas.Canvas):
         if self.view == 'week':
             event_item.x = event_item.left_border
             if ((event_item.event.all_day or event_item.event.multidays)
-                and self._drag_start_date != event_date):
+                    and self._drag_start_date != event_date):
                 event_item.x += daysdelta.days * self._day_width
                 event_item.event.start += daysdelta
                 if event_item.event.end:
@@ -727,8 +727,8 @@ class Calendar(goocanvas.Canvas):
                     / self._day_width))
                 day_off = day_no * self._day_width + 2
                 event_item.x = self._timeline.width + day_off
-                if (event_item.no_caption or event.y < event_item.y or
-                    event.y > (event_item.y + event_item.height)):
+                if (event_item.no_caption or event.y < event_item.y
+                        or event.y > (event_item.y + event_item.height)):
                     # click was not performed inside the new day item
                     level_height = self.minute_height * self.MIN_PER_LEVEL
                     cur_level = int((event.y - self._timeline.y)

@@ -59,7 +59,7 @@ Instance methods:
 
 .. method:: select(date)
 
-   Select the given date in the calendar. Date should be a 
+   Select the given date in the calendar. Date should be a
    `datetime.date
    <http://docs.python.org/library/datetime.html#date-objects>`_.
 
@@ -78,7 +78,7 @@ Instance methods:
 .. method:: draw_events()
 
    Redraws events.
-   
+
 .. method:: update()
 
    Redraws calendar and events.
@@ -97,7 +97,7 @@ Instance signals:
 
    *event*
       The pressed :class:`Event <goocalendar.Event>` object.
- 
+
    *user_param1*
       the first user parameter (if any) specified with the connect() method.
 
@@ -157,7 +157,6 @@ Instance signals:
       `datetime.date
       <http://docs.python.org/library/datetime.html#date-objects>`_
       corresponding to the day pressed.
-      
 
    *user_param1*
       the first user parameter (if any) specified with the connect() method.
@@ -292,7 +291,7 @@ Instance signals:
 
    *event*
       The added :class:`Event <goocalendar.Event>`.
- 
+
    *user_param1*
       the first user parameter (if any) specified with the connect() method.
 
@@ -311,7 +310,7 @@ Instance signals:
 
    *event*
       The removed :class:`Event <goocalendar.Event>`.
- 
+
    *user_param1*
       the first user parameter (if any) specified with the connect() method.
 
@@ -419,4 +418,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-

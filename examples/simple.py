@@ -80,6 +80,6 @@ window.show_all()
 
 window.connect('delete-event', gtk.main_quit)
 calendar.connect('event-pressed', on_event_pressed, event_store)
-calendar.connect('day-selected',  on_day_selected)
+calendar.connect('day-selected', on_day_selected)
 calendar.connect('key-press-event', on_key_pressed)
 gtk.main()
