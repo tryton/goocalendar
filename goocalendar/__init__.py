@@ -4,4 +4,4 @@ from ._calendar import Calendar
 from ._event import Event, EventStore
 
 __all__ = ['Calendar', 'EventStore', 'Event']
-__version__ = '0.1'
+__version__ = '0.2'
