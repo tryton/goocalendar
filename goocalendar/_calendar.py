@@ -1129,20 +1129,26 @@ class EventItem(goocanvas.Group):
         if self.event.end:
             enddate = self.event.end.strftime('%x')
             endtime = self.event.end.strftime(self.time_format)
+        caption = self.event.caption
 
         if self.event.all_day:
-            caption = self.event.caption
             if not self.event.end:
                 tooltip = '%s\n%s' % (startdate, caption)
             else:
                 tooltip = '%s - %s\n%s' % (startdate, enddate, caption)
         elif self.event.multidays:
-            caption = '%s %s' % (starttime, self.event.caption)
-            tooltip = '%s %s - %s %s\n%s' % (startdate, starttime, enddate,
-                endtime, self.event.caption)
+            caption = '%s %s' % (starttime, caption)
+            if not self.event.end:
+                tooltip = '%s %s\n%s' % (startdate, starttime, caption)
+            else:
+                tooltip = '%s %s - %s %s\n%s' % (startdate, starttime,
+                    enddate, endtime, caption)
         else:
-            caption = '%s %s' % (starttime, self.event.caption)
-            tooltip = '%s - %s\n%s' % (starttime, endtime, self.event.caption)
+            caption = '%s %s' % (starttime, caption)
+            if not self.event.end:
+                tooltip = '%s\n%s' % (starttime, caption)
+            else:
+                tooltip = '%s - %s\n%s' % (starttime, endtime, caption)
         caption = '' if self.no_caption else caption
         the_event_bg_color = self.event.bg_color
         self.text.set_property('text', caption)
