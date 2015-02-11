@@ -14,10 +14,10 @@ def my_weekdatescalendar(cal, date):
 
 
 def my_monthdatescalendar(cal, date):
-    # Months that have only five weeks are filled with another week from
+    # Months that have less than five weeks are filled with weeks from
     # the following month.
     weeks = cal.monthdatescalendar(date.year, date.month)
-    if len(weeks) < 6:
+    while len(weeks) < 6:
         last_day = weeks[-1][-1]
         offset = datetime.timedelta(1)
         week = []
