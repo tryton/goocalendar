@@ -11,7 +11,7 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(name='GooCalendar',
-    version='0.2',
+    version='0.3',
     author='Cédric Krier',
     author_email='cedric.krier@b2ck.com',
     url='http://code.google.com/p/goocalendar/',
