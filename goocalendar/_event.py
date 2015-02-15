@@ -15,6 +15,8 @@ class Event(object):
     def __init__(self, caption, start, end=None, **kwargs):
         assert caption is not None
         assert start is not None
+        if end is not None:
+            assert start <= end
         self.id = None
         self.caption = caption
         self.start = start
