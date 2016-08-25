@@ -91,7 +91,8 @@ def event_intersects(event, start, end=None):
     event_end = event.end if event.end else event.start
     return ((event.start >= start and event.start < end)
         or (event_end > start and event_end <= end)
-        or (event.start < start and event_end > end))
+        or (event.start < start and event_end > end)
+        or (event.start == start and event_end == end))
 
 
 def get_intersection_list(list, start, end):

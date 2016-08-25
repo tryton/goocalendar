@@ -55,6 +55,12 @@ event = goocalendar.Event('Event number 4',
     bg_color='yellow')
 event_store.add(event)
 
+# A singularity event.
+event = goocalendar.Event('Singularity',
+    datetime.datetime(2007, 10, 7, 12),
+    datetime.datetime(2007, 10, 7, 12))
+event_store.add(event)
+
 # A normal multi-day event.
 event = goocalendar.Event('Long Event',
     datetime.datetime(2007, 10, 9),

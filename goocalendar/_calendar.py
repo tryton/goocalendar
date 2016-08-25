@@ -557,7 +557,7 @@ class Calendar(goocanvas.Canvas):
             remaining_events = day_events[:]
             while len(remaining_events) > 0:
                 columns.append([remaining_events[0]])
-                for event in remaining_events:
+                for event in remaining_events[1:]:
                     intersections = util.count_intersections(columns[-1],
                         event.start, event.end)
                     if intersections == 0:
