@@ -5,7 +5,8 @@ Prerequisites
 -------------
 
  * Python (http://www.python.org/)
- * PyGoocanvas (https://live.gnome.org/PyGoocanvas)
+ * GooCanvas >= 2.0 (https://wiki.gnome.org/Projects/GooCanvas)
+ * Optional: PyGoocanvas (https://wiki.gnome.org/Projects/PyGoocanvas)
 
 Installation
 ------------

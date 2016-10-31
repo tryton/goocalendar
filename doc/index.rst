@@ -244,6 +244,40 @@ Instance signals:
    *...*
       additional user parameters (if any).
 
+Instance properties:
+
+``text-color``
+
+    The color of the text. Default: #2E3634
+
+``inactive-text-color``
+
+    The color of the inactive text. Default: #8B8F8E
+
+``border-color``
+
+    The color of border. Default: #D2D0D2
+
+``selected-border-color``
+
+    The color of selected border. Default: #5EC590
+
+``inactive-border-color``
+
+    The color of inactive border. Default: #E8E7E8
+
+``body-color``
+
+    The color of the body. Default: white
+
+``today-body-color``
+
+    The color of the today body. Default: ivory
+
+``font-desc``
+
+    The attributes specifying which font to use.
+
 .. _eventstore:
 
 EventStore Objects
