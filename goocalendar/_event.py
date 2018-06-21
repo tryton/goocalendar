@@ -2,11 +2,10 @@
 # this repository contains the full copyright notices and license terms.
 import gobject
 
-import util
-from .util import total_ordering
+from . import util
 
 
-@total_ordering
+@util.total_ordering
 class Event(object):
     """
     This class represents an event that can be displayed in the calendar.

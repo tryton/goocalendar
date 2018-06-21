@@ -10,8 +10,7 @@ import gobject
 import goocanvas
 import pango
 
-import util
-from .util import left_click
+from . import util
 
 
 class Calendar(goocanvas.Canvas):
@@ -466,7 +465,7 @@ class Calendar(goocanvas.Canvas):
         end = datetime.datetime.combine(dates[-1], datetime.time()) \
             + onedaydelta
         events = self._event_store.get_events(start, end)
-        events.sort(util.event_days, reverse=True)
+        events.sort(key=util.event_days, reverse=True)
 
         # Draw all-day events, longest event first.
         max_y = self._selected_day.line_height
@@ -666,7 +665,7 @@ class Calendar(goocanvas.Canvas):
         elif event.keyval == gtk.gdk.keyval_from_name('Right'):
             self.select(date + datetime.timedelta(1))
 
-    @left_click
+    @util.left_click
     def on_day_item_button_press_event(self, day, widget2, event):
         self.emit('day-pressed', day.date)
         self.select(day.date)
@@ -723,7 +722,7 @@ class Calendar(goocanvas.Canvas):
             day_no = int((x - offset_x) / self._day_width)
         return cur_week[day_no]
 
-    @left_click
+    @util.left_click
     def on_event_item_button_press_event(self, event_item, rect, event):
 
         # Drag and drop starting coordinates
@@ -892,6 +891,7 @@ class Calendar(goocanvas.Canvas):
             event_item.y += pxdelta
             event_item.update()
             self._drag_height -= pxdelta
+
 
 gobject.signal_new('event-pressed',
     Calendar,
