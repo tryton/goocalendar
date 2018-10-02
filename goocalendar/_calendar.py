@@ -194,7 +194,7 @@ class Calendar(goocanvas.Canvas):
         if self.view == "month":
             new_date = util.next_month(cal, self.selected_date)
         elif self.view == "week":
-            new_date = util.next_month(cal, self.selected_date)
+            new_date = util.next_week(cal, self.selected_date)
         self.select(new_date)
 
     def set_view(self, level):
