@@ -1,5 +1,6 @@
 # This file is part of GooCalendar.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from __future__ import print_function
 import datetime
 
 import gtk
@@ -8,11 +9,11 @@ import goocalendar
 
 
 def on_event_pressed(calendar, event, event_store):
-    print "Event %s was pressed" % event.caption
+    print("Event %s was pressed" % event.caption)
 
 
 def on_day_selected(calendar, day):
-    print "Day %s was selected" % day
+    print("Day %s was selected" % day)
 
 
 def on_key_pressed(widget, event):
@@ -30,7 +31,7 @@ calendar.set_has_tooltip(True)
 
 # Normal events.
 event = goocalendar.Event('Event number 1',
-    datetime.datetime(2007, 10, 8, 02),
+    datetime.datetime(2007, 10, 8, 2),
     datetime.datetime(2007, 10, 8, 17),
     bg_color='lightgreen')
 event_store.add(event)
