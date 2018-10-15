@@ -72,6 +72,14 @@ def next_week(cal, date):
     return date + datetime.timedelta(7)
 
 
+def previous_day(cal, date):
+    return date - datetime.timedelta(1)
+
+
+def next_day(cal, date):
+    return date + datetime.timedelta(1)
+
+
 def time_delta(datetime1, datetime2):
     delta = datetime1 - datetime2
     if delta < datetime.timedelta():

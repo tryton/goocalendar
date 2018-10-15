@@ -14,7 +14,7 @@ from . import util
 
 
 class Calendar(goocanvas.Canvas):
-    AVAILABLE_VIEWS = ["month", "week"]
+    AVAILABLE_VIEWS = ["month", "week", "day"]
     MIN_PER_LEVEL = 15  # Number of minutes per graduation for drag and drop
 
     __gproperties__ = {
@@ -145,6 +145,8 @@ class Calendar(goocanvas.Canvas):
             old_first_weekday = util.first_day_of_week(cal, old_date)
             new_first_weekday = util.first_day_of_week(cal, new_date)
             page_changed = old_first_weekday != new_first_weekday
+        elif self.view == "day":
+            page_changed = old_date != new_date
 
         # This is slow: When the month was changed we need to update
         # the entire canvas.
@@ -183,18 +185,14 @@ class Calendar(goocanvas.Canvas):
 
     def previous_page(self):
         cal = calendar.Calendar(self.firstweekday)
-        if self.view == "month":
-            new_date = util.previous_month(cal, self.selected_date)
-        elif self.view == "week":
-            new_date = util.previous_week(cal, self.selected_date)
+        new_date = getattr(
+            util, 'previous_%s' % self.view)(cal, self.selected_date)
         self.select(new_date)
 
     def next_page(self):
         cal = calendar.Calendar(self.firstweekday)
-        if self.view == "month":
-            new_date = util.next_month(cal, self.selected_date)
-        elif self.view == "week":
-            new_date = util.next_week(cal, self.selected_date)
+        new_date = getattr(
+            util, 'next_%s' % self.view)(cal, self.selected_date)
         self.select(new_date)
 
     def set_view(self, level):
@@ -250,12 +248,66 @@ class Calendar(goocanvas.Canvas):
             self.draw_month()
         elif self.view == "week":
             self.draw_week()
+        elif self.view == "day":
+            self.draw_day()
         self.draw_events()
 
     def draw_background(self):
         x, y, w, h = self.get_bounds()
         self._bg_rect.set_property('width', w)
         self._bg_rect.set_property('height', h)
+
+    def draw_day(self):
+        """
+        Draws the currently selected day.
+        """
+        pango_size = self.props.font_desc.get_size()
+        x, y, w, h = self.get_bounds()
+        timeline_w = self._timeline.width
+        dayno = self.selected_date.weekday()
+        day_name = calendar.day_name[dayno]
+        # Sum the needed space for the date before the day_name
+        caption_size = len(day_name) + 3
+        day_width_min = caption_size * pango_size / pango.SCALE
+        day_width_max = (w - timeline_w)
+        self._day_width = max(day_width_min, day_width_max)
+        self._day_height = h
+        width, height = self.get_size_request()
+        new_width = int(timeline_w + self._day_width)
+        if (width != new_width and day_width_min >= day_width_max):
+            self.set_size_request(new_width, height)  # Minimum widget size
+
+        # Redraw all days.
+        cal = calendar.Calendar(self.firstweekday)
+        weeks = util.my_monthdatescalendar(cal, self.selected_date)
+        for weekno, week in enumerate(weeks):
+            # Hide all days that are not part of the current day
+            if self.selected_date not in week:
+                for dayno, date in enumerate(week):
+                    box = self.days[weekno * 7 + dayno]
+                    box.set_property('visibility', goocanvas.ITEM_INVISIBLE)
+                continue
+
+            if self.selected_date == datetime.date.today():
+                the_body_color = self.props.today_body_color
+            else:
+                the_body_color = self.props.body_color
+
+            # Draw.
+            box = self.days[weekno * 7 + dayno]
+            box.x = timeline_w
+            box.y = 0
+            box.width = self._day_width - 2
+            box.height = self._day_height
+            box.type = 'day'
+            box.date = self.selected_date
+            box.full_border = True
+            box.border_color = self.props.selected_border_color
+            box.body_color = the_body_color
+            box.title_text_color = self.props.text_color
+            box.event_text_color = self.props.text_color
+            box.set_property('visibility', goocanvas.ITEM_VISIBLE)
+            box.update()
 
     def draw_week(self):
         """
@@ -436,6 +488,8 @@ class Calendar(goocanvas.Canvas):
         return None
 
     def draw_events(self):
+        _, _, bound_width, _ = self.get_bounds()
+        timeline_witdh = self._timeline.width
         # Clear previous events.
         for item in self._event_items:
             item.remove()
@@ -454,8 +508,10 @@ class Calendar(goocanvas.Canvas):
             dates = []
             for week in weeks:
                 dates += week
-        else:
+        elif self.view == "week":
             dates = util.my_weekdatescalendar(cal, self.selected_date)
+        else:
+            dates = [self.selected_date]
 
         # Retrieve a list of all events in the current time span,
         # and sort them by event length.
@@ -472,8 +528,8 @@ class Calendar(goocanvas.Canvas):
         non_all_day_events = []
         for event in events:
             event.event_items = []
-            # Handle non-all-day events differently in week mode.
-            if (self.view == "week" and not event.all_day
+            # Handle non-all-day events differently in week and day modes.
+            if (self.view in {"week", "day"} and not event.all_day
                     and not event.multidays):
                 non_all_day_events.append(event)
                 continue
@@ -523,12 +579,18 @@ class Calendar(goocanvas.Canvas):
                     self.on_event_item_motion_notified)
                 self._event_items.append(event_item)
                 self.get_root_item().add_child(event_item, -1)
-                event_item.x = day.x
-                event_item.left_border = day.x + 2
+                if self.view == "day":
+                    x_start = timeline_witdh
+                    width = bound_width
+                else:
+                    x_start = day.x
+                    width = (day.width + 2) * len(week)
+                event_item.x = x_start
+                event_item.left_border = x_start + 2
                 event_item.y = day.y + (free_line + 1) * day.line_height
                 event_item.y += free_line * 2  # 2px of margin per line
                 event_item.y += 1  # 1px padding-top
-                event_item.width = (day.width + 2) * len(week)
+                event_item.width = width
                 event_item.height = day.line_height
                 week_start = week[0].date
                 week_end = week[-1].date
@@ -550,7 +612,7 @@ class Calendar(goocanvas.Canvas):
                     event_item.type = 'leftright'
                 event_item.update()
 
-        if self.view != "week":
+        if self.view == "month":
             return
 
         # Redraw the timeline.
@@ -627,9 +689,14 @@ class Calendar(goocanvas.Canvas):
                     self.get_root_item().add_child(event_item, -1)
                     y_off1 = top_offset_mins * self.minute_height
                     y_off2 = bottom_offset_mins * self.minute_height
-                    column_width = day.width / parallel
-                    event_item.left_border = day.x + 2
-                    event_item.x = day.x + (columnno * column_width) + 2
+                    if self.view == "day":
+                        x_start = timeline_witdh
+                        column_width = w / parallel
+                    else:
+                        column_width = day.width / parallel
+                        x_start = day.x
+                    event_item.left_border = x_start + 2
+                    event_item.x = x_start + (columnno * column_width) + 2
                     event_item.y = max_y + y_off1
                     event_item.width = column_width - 4
                     if columnno != (parallel - 1):
@@ -695,6 +762,8 @@ class Calendar(goocanvas.Canvas):
         """
         Return the date of the day_item pointed by two coordinates [x,y]
         """
+        if self.view == 'day':
+            return self.selected_date
         # Get current week
         cal = calendar.Calendar(self.firstweekday)
         weeks = util.my_monthdatescalendar(cal, self.selected_date)

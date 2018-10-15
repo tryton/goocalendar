@@ -20,6 +20,8 @@ def on_key_pressed(widget, event):
     if (event.state & gtk.gdk.CONTROL_MASK and
             event.keyval == gtk.gdk.keyval_from_name('l')):
         if widget.view == 'week':
+            widget.set_view('day')
+        elif widget.view == 'day':
             widget.set_view('month')
         else:
             widget.set_view('week')
