@@ -5,40 +5,37 @@ import calendar
 import math
 from operator import add
 
-import gtk
-import gobject
-import goocanvas
-import pango
+from gi.repository import Gdk, GObject, GooCanvas, Gtk, Pango
 
 from . import util
 
 
-class Calendar(goocanvas.Canvas):
+class Calendar(GooCanvas.Canvas):
     AVAILABLE_VIEWS = ["month", "week", "day"]
     MIN_PER_LEVEL = 15  # Number of minutes per graduation for drag and drop
 
     __gproperties__ = {
-        'text-color': (gobject.TYPE_STRING, '#2E3634', "Text Color",
-            "The color of the text", gobject.PARAM_READWRITE),
-        'inactive-text-color': (gobject.TYPE_STRING, '#8B8F8E',
+        'text-color': (GObject.TYPE_STRING, '#2E3634', "Text Color",
+            "The color of the text", GObject.ParamFlags.READWRITE),
+        'inactive-text-color': (GObject.TYPE_STRING, '#8B8F8E',
             "Inactive Text Color", "The color of the inactive text",
-            gobject.PARAM_READWRITE),
-        'border-color': (gobject.TYPE_STRING, '#D2D0D2', "Border Color",
-            "The color of border", gobject.PARAM_READWRITE),
-        'selected-border-color': (gobject.TYPE_STRING, '#5EC590',
+            GObject.ParamFlags.READWRITE),
+        'border-color': (GObject.TYPE_STRING, '#D2D0D2', "Border Color",
+            "The color of border", GObject.ParamFlags.READWRITE),
+        'selected-border-color': (GObject.TYPE_STRING, '#5EC590',
             "Selected Border Color", "The color of selected border",
-            gobject.PARAM_READWRITE),
-        'inactive-border-color': (gobject.TYPE_STRING, '#E8E7E8',
+            GObject.ParamFlags.READWRITE),
+        'inactive-border-color': (GObject.TYPE_STRING, '#E8E7E8',
             "Inactive Border Color", "The color of inactive border",
-            gobject.PARAM_READWRITE),
-        'body-color': (gobject.TYPE_STRING, 'white', "Body Color",
-            "The color of the body", gobject.PARAM_READWRITE),
-        'today-body-color': (gobject.TYPE_STRING, 'ivory', "Today Body Color",
-            "The color of the today body", gobject.PARAM_READWRITE),
+            GObject.ParamFlags.READWRITE),
+        'body-color': (GObject.TYPE_STRING, 'white', "Body Color",
+            "The color of the body", GObject.ParamFlags.READWRITE),
+        'today-body-color': (GObject.TYPE_STRING, 'ivory', "Today Body Color",
+            "The color of the today body", GObject.ParamFlags.READWRITE),
         # TODO font
-        'font-desc': (gobject.TYPE_PYOBJECT, "Font Description",
+        'font-desc': (GObject.TYPE_PYOBJECT, "Font Description",
             "The attributes specifying which font to use",
-            gobject.PARAM_READWRITE),
+            GObject.ParamFlags.READWRITE),
         }
 
     def __init__(self, event_store=None, view="month", time_format="%H:%M",
@@ -81,27 +78,25 @@ class Calendar(goocanvas.Canvas):
         self.selected_date = datetime.date.today()
         self.time_format = time_format
         self.set_bounds(0, 0, 200, 200)
-        if hasattr(self, 'set_flags'):
-            self.set_flags(gtk.CAN_FOCUS)
-        else:
-            self.set_can_focus(True)
-        self.set_events(gtk.gdk.EXPOSURE_MASK
-            | gtk.gdk.BUTTON_PRESS_MASK
-            | gtk.gdk.BUTTON_RELEASE_MASK
-            | gtk.gdk.POINTER_MOTION_MASK
-            | gtk.gdk.POINTER_MOTION_HINT_MASK
-            | gtk.gdk.KEY_PRESS_MASK
-            | gtk.gdk.KEY_RELEASE_MASK
-            | gtk.gdk.ENTER_NOTIFY_MASK
-            | gtk.gdk.LEAVE_NOTIFY_MASK
-            | gtk.gdk.FOCUS_CHANGE_MASK)
+        self.set_can_focus(True)
+        self.set_events(
+            Gdk.EventMask.EXPOSURE_MASK
+            | Gdk.EventMask.BUTTON_PRESS_MASK
+            | Gdk.EventMask.BUTTON_RELEASE_MASK
+            | Gdk.EventMask.POINTER_MOTION_MASK
+            | Gdk.EventMask.POINTER_MOTION_HINT_MASK
+            | Gdk.EventMask.KEY_PRESS_MASK
+            | Gdk.EventMask.KEY_RELEASE_MASK
+            | Gdk.EventMask.ENTER_NOTIFY_MASK
+            | Gdk.EventMask.LEAVE_NOTIFY_MASK
+            | Gdk.EventMask.FOCUS_CHANGE_MASK)
         self.connect_after('realize', self.on_realize)
         self.connect('size-allocate', self.on_size_allocate)
         self.connect('key-press-event', self.on_key_press_event)
 
         # Initialize background, timeline and days and add them to canvas
         root = self.get_root_item()
-        self._bg_rect = goocanvas.Rect(parent=root, x=0, y=0,
+        self._bg_rect = GooCanvas.CanvasRect(parent=root, x=0, y=0,
             stroke_color='white', fill_color='white')
         self._timeline = TimelineItem(self, time_format=self.time_format)
         root.add_child(self._timeline, -1)
@@ -122,11 +117,8 @@ class Calendar(goocanvas.Canvas):
     def do_get_property(self, prop):
         if prop.name == 'font-desc':
             if self._font_desc is None:
-                if hasattr(self, 'get_style_context'):
-                    return self.get_style_context().get_font(
-                        gtk.STATE_FLAG_NORMAL)
-                else:
-                    return self.get_style().font_desc
+                self._font_desc = self.get_style_context().get_property(
+                    'font', Gtk.StateFlags.NORMAL)
             return self._font_desc
         else:
             return self.__props[prop.name]
@@ -268,7 +260,7 @@ class Calendar(goocanvas.Canvas):
         day_name = calendar.day_name[dayno]
         # Sum the needed space for the date before the day_name
         caption_size = len(day_name) + 3
-        day_width_min = caption_size * pango_size / pango.SCALE
+        day_width_min = caption_size * pango_size / Pango.SCALE
         day_width_max = (w - timeline_w)
         self._day_width = max(day_width_min, day_width_max)
         self._day_height = h
@@ -285,7 +277,8 @@ class Calendar(goocanvas.Canvas):
             if self.selected_date not in week:
                 for dayno, date in enumerate(week):
                     box = self.days[weekno * 7 + dayno]
-                    box.set_property('visibility', goocanvas.ITEM_INVISIBLE)
+                    box.set_property(
+                        'visibility', GooCanvas.CanvasItemVisibility.INVISIBLE)
                 continue
 
             if self.selected_date == datetime.date.today():
@@ -306,7 +299,8 @@ class Calendar(goocanvas.Canvas):
             box.body_color = the_body_color
             box.title_text_color = self.props.text_color
             box.event_text_color = self.props.text_color
-            box.set_property('visibility', goocanvas.ITEM_VISIBLE)
+            box.set_property(
+                'visibility', GooCanvas.CanvasItemVisibility.VISIBLE)
             box.update()
 
     def draw_week(self):
@@ -318,7 +312,7 @@ class Calendar(goocanvas.Canvas):
         timeline_w = self._timeline.width
         caption_size = max(len(day_name) for day_name in calendar.day_name)
         caption_size += 3  # The needed space for the date before the day_name
-        day_width_min = caption_size * pango_size / pango.SCALE
+        day_width_min = caption_size * pango_size / Pango.SCALE
         day_width_max = (w - timeline_w) / 7
         self._day_width = max(day_width_min, day_width_max)
         self._day_height = h
@@ -335,7 +329,8 @@ class Calendar(goocanvas.Canvas):
             if self.selected_date not in week:
                 for dayno, date in enumerate(week):
                     box = self.days[weekno * 7 + dayno]
-                    box.set_property('visibility', goocanvas.ITEM_INVISIBLE)
+                    box.set_property(
+                        'visibility', GooCanvas.CanvasItemVisibility.INVISIBLE)
                 continue
 
             # Draw the days that are part of the current week.
@@ -364,7 +359,8 @@ class Calendar(goocanvas.Canvas):
                 box.body_color = the_body_color
                 box.title_text_color = self.props.text_color
                 box.event_text_color = self.props.text_color
-                box.set_property('visibility', goocanvas.ITEM_VISIBLE)
+                box.set_property(
+                    'visibility', GooCanvas.CanvasItemVisibility.VISIBLE)
                 box.update()
 
                 if selected:
@@ -379,14 +375,15 @@ class Calendar(goocanvas.Canvas):
         pango_size = self.props.font_desc.get_size()
         caption_size = max(len(day_name) for day_name in calendar.day_name)
         caption_size += 3  # The needed space for the date before the day_name
-        day_width_min = caption_size * pango_size / pango.SCALE
+        day_width_min = caption_size * pango_size / Pango.SCALE
         day_width_max = w / 7
         self._day_width = max(day_width_min, day_width_max)
         self._day_height = h / 6
 
         # Hide the timeline.
         if self._timeline is not None:
-            self._timeline.set_property('visibility', goocanvas.ITEM_INVISIBLE)
+            self._timeline.set_property(
+                'visibility', GooCanvas.CanvasItemVisibility.INVISIBLE)
 
         # Draw the grid.
         y_pos = 0
@@ -425,7 +422,8 @@ class Calendar(goocanvas.Canvas):
                 box.title_text_color = the_text_color
                 box.event_text_color = the_text_color
                 box.type = 'month'
-                box.set_property('visibility', goocanvas.ITEM_VISIBLE)
+                box.set_property(
+                    'visibility', GooCanvas.CanvasItemVisibility.VISIBLE)
                 box.update()
 
                 if selected:
@@ -616,7 +614,8 @@ class Calendar(goocanvas.Canvas):
             return
 
         # Redraw the timeline.
-        self._timeline.set_property('visibility', goocanvas.ITEM_VISIBLE)
+        self._timeline.set_property(
+            'visibility', GooCanvas.CanvasItemVisibility.VISIBLE)
         x, y, w, h = self.get_bounds()
         self._timeline.x = x
         self._timeline.y = max_y
@@ -723,13 +722,13 @@ class Calendar(goocanvas.Canvas):
 
     def on_key_press_event(self, widget, event):
         date = self.selected_date
-        if event.keyval == gtk.gdk.keyval_from_name('Up'):
+        if event.keyval == Gdk.KEY_Up:
             self.select(date - datetime.timedelta(7))
-        elif event.keyval == gtk.gdk.keyval_from_name('Down'):
+        elif event.keyval == Gdk.KEY_Down:
             self.select(date + datetime.timedelta(7))
-        elif event.keyval == gtk.gdk.keyval_from_name('Left'):
+        elif event.keyval == Gdk.KEY_Left:
             self.select(date - datetime.timedelta(1))
-        elif event.keyval == gtk.gdk.keyval_from_name('Right'):
+        elif event.keyval == Gdk.KEY_Right:
             self.select(date + datetime.timedelta(1))
 
     @util.left_click
@@ -741,7 +740,7 @@ class Calendar(goocanvas.Canvas):
             self.emit('day-activated', day.date)
 
     def _is_double_click(self, event):
-        gtk_settings = gtk.settings_get_default()
+        gtk_settings = Gtk.Settings.get_default()
         double_click_distance = gtk_settings.props.gtk_double_click_distance
         double_click_time = gtk_settings.props.gtk_double_click_time
         if (self._last_click_x is not None and
@@ -962,49 +961,49 @@ class Calendar(goocanvas.Canvas):
             self._drag_height -= pxdelta
 
 
-gobject.signal_new('event-pressed',
+GObject.signal_new('event-pressed',
     Calendar,
-    gobject.SIGNAL_RUN_FIRST,
-    gobject.TYPE_NONE,
-    (gobject.TYPE_PYOBJECT,))
-gobject.signal_new('event-activated',
+    GObject.SignalFlags.RUN_FIRST,
+    GObject.TYPE_NONE,
+    (GObject.TYPE_PYOBJECT,))
+GObject.signal_new('event-activated',
     Calendar,
-    gobject.SIGNAL_RUN_FIRST,
-    gobject.TYPE_NONE,
-    (gobject.TYPE_PYOBJECT,))
-gobject.signal_new('event-released',
+    GObject.SignalFlags.RUN_FIRST,
+    GObject.TYPE_NONE,
+    (GObject.TYPE_PYOBJECT,))
+GObject.signal_new('event-released',
     Calendar,
-    gobject.SIGNAL_RUN_FIRST,
-    gobject.TYPE_NONE,
-    (gobject.TYPE_PYOBJECT,))
-gobject.signal_new('day-pressed',
+    GObject.SignalFlags.RUN_FIRST,
+    GObject.TYPE_NONE,
+    (GObject.TYPE_PYOBJECT,))
+GObject.signal_new('day-pressed',
     Calendar,
-    gobject.SIGNAL_RUN_FIRST,
-    gobject.TYPE_NONE,
-    (gobject.TYPE_PYOBJECT,))
-gobject.signal_new('day-activated',
+    GObject.SignalFlags.RUN_FIRST,
+    GObject.TYPE_NONE,
+    (GObject.TYPE_PYOBJECT,))
+GObject.signal_new('day-activated',
     Calendar,
-    gobject.SIGNAL_RUN_FIRST,
-    gobject.TYPE_NONE,
-    (gobject.TYPE_PYOBJECT,))
-gobject.signal_new('day-selected',
+    GObject.SignalFlags.RUN_FIRST,
+    GObject.TYPE_NONE,
+    (GObject.TYPE_PYOBJECT,))
+GObject.signal_new('day-selected',
     Calendar,
-    gobject.SIGNAL_RUN_FIRST,
-    gobject.TYPE_NONE,
-    (gobject.TYPE_PYOBJECT,))
-gobject.signal_new('view-changed',
+    GObject.SignalFlags.RUN_FIRST,
+    GObject.TYPE_NONE,
+    (GObject.TYPE_PYOBJECT,))
+GObject.signal_new('view-changed',
     Calendar,
-    gobject.SIGNAL_RUN_FIRST,
-    gobject.TYPE_NONE,
-    (gobject.TYPE_PYOBJECT,))
-gobject.signal_new('page-changed',
+    GObject.SignalFlags.RUN_FIRST,
+    GObject.TYPE_NONE,
+    (GObject.TYPE_PYOBJECT,))
+GObject.signal_new('page-changed',
     Calendar,
-    gobject.SIGNAL_RUN_FIRST,
-    gobject.TYPE_NONE,
-    (gobject.TYPE_PYOBJECT,))
+    GObject.SignalFlags.RUN_FIRST,
+    GObject.TYPE_NONE,
+    (GObject.TYPE_PYOBJECT,))
 
 
-class DayItem(goocanvas.Group):
+class DayItem(GooCanvas.CanvasGroup):
     """
     A canvas item representing a day.
     """
@@ -1029,10 +1028,10 @@ class DayItem(goocanvas.Group):
         self.line_height = 0
 
         # Create canvas items.
-        self.border = goocanvas.Rect(parent=self)
-        self.text = goocanvas.Text(parent=self)
-        self.box = goocanvas.Rect(parent=self)
-        self.indic = goocanvas.Rect(parent=self)
+        self.border = GooCanvas.CanvasRect(parent=self)
+        self.text = GooCanvas.CanvasText(parent=self)
+        self.box = GooCanvas.CanvasRect(parent=self)
+        self.indic = GooCanvas.CanvasRect(parent=self)
 
     def update(self):
         if not self.date:
@@ -1043,8 +1042,8 @@ class DayItem(goocanvas.Group):
         caption = '%s %s' % (self.date.day, day_name)
         self.text.set_property('font-desc', self._cal.props.font_desc)
         self.text.set_property('text', caption)
-        logical_height = self.text.get_natural_extents()[1][3]
-        line_height = int(math.ceil(float(logical_height) / pango.SCALE))
+        logical_height = self.text.get_natural_extents()[1].height
+        line_height = int(math.ceil(float(logical_height) / Pango.SCALE))
         self.line_height = line_height
 
         # Draw the border.
@@ -1084,10 +1083,12 @@ class DayItem(goocanvas.Group):
 
         # Show an indicator in the title, if requested.
         if not self.show_indic:
-            self.indic.set_property('visibility', goocanvas.ITEM_INVISIBLE)
+            self.indic.set_property(
+                'visibility', GooCanvas.CanvasItemVisibility.INVISIBLE)
             return
 
-        self.indic.set_property('visibility', goocanvas.ITEM_VISIBLE)
+        self.indic.set_property(
+            'visibility', GooCanvas.CanvasItemVisibility.VISIBLE)
         self.indic.set_property('x',
             self.x + self.width - line_height / 1.5)
         self.indic.set_property('y', self.y + line_height / 3)
@@ -1107,7 +1108,7 @@ class DayItem(goocanvas.Group):
         self.indic.set_property('clip_path', path)
 
 
-class EventItem(goocanvas.Group):
+class EventItem(GooCanvas.CanvasGroup):
     """
     A canvas item representing an event.
     """
@@ -1129,11 +1130,11 @@ class EventItem(goocanvas.Group):
         self.no_caption = False
 
         # Create canvas items.
-        self.box = goocanvas.Rect(parent=self)
-        self.text = goocanvas.Text(parent=self)
+        self.box = GooCanvas.CanvasRect(parent=self)
+        self.text = GooCanvas.CanvasText(parent=self)
         self.text.set_property('font-desc', self._cal.props.font_desc)
-        logical_height = self.text.get_natural_extents()[1][3]
-        self.line_height = logical_height / pango.SCALE
+        logical_height = self.text.get_natural_extents()[1].height
+        self.line_height = logical_height / Pango.SCALE
 
         if self.x is not None:
             self.update()
@@ -1154,13 +1155,13 @@ class EventItem(goocanvas.Group):
         # Do we have enough width for caption
         first_line = starttime + ' - ' + endtime
         self.text.set_property('text', first_line)
-        logical_width = self.text.get_natural_extents()[1][2] / pango.SCALE
+        logical_width = self.text.get_natural_extents()[1].width / Pango.SCALE
         if self.width < logical_width:
             first_line = starttime + ' - '
 
         second_line = self.event.caption
         self.text.set_property('text', second_line)
-        logical_width = self.text.get_natural_extents()[1][2] / pango.SCALE
+        logical_width = self.text.get_natural_extents()[1].width / Pango.SCALE
         if self.width < logical_width:
             second_line = None
 
@@ -1191,8 +1192,8 @@ class EventItem(goocanvas.Group):
             bg_rgba_color = self.box.get_property('stroke_color_rgba')
             bg_colors = list(util.rgba_to_colors(bg_rgba_color))
             # We make background color 1/4 brighter (+64 over 255)
-            bg_colors[:3] = map(min,
-                map(add, bg_colors[:3], (64,) * 3), (255,) * 3)
+            bg_colors[:3] = list(map(min,
+                list(map(add, bg_colors[:3], (64,) * 3)), (255,) * 3))
             bg_colors = util.colors_to_rgba(*bg_colors)
             self.box.set_property('fill_color_rgba', bg_colors)
 
@@ -1246,8 +1247,8 @@ class EventItem(goocanvas.Group):
         caption = '' if self.no_caption else caption
         the_event_bg_color = self.event.bg_color
         self.text.set_property('text', caption)
-        logical_height = self.text.get_natural_extents()[1][3]
-        self.height = logical_height / pango.SCALE
+        logical_height = self.text.get_natural_extents()[1].height
+        self.height = logical_height / Pango.SCALE
 
         # Choose text color.
         if self.event.text_color is None:
@@ -1263,8 +1264,8 @@ class EventItem(goocanvas.Group):
             self.box.set_property('stroke_color', the_event_bg_color)
             bg_rgba_color = self.box.get_property('stroke_color_rgba')
             bg_colors = list(util.rgba_to_colors(bg_rgba_color))
-            bg_colors[:3] = map(min,
-                map(add, bg_colors[:3], (64,) * 3), (255,) * 3)
+            bg_colors[:3] = list(map(min,
+                list(map(add, bg_colors[:3], (64,) * 3)), (255,) * 3))
             bg_colors = util.colors_to_rgba(*bg_colors)
             self.box.set_property('fill_color_rgba', bg_colors)
             transparent_color = self.box.get_property('fill_color_rgba') - 128
@@ -1286,7 +1287,7 @@ class EventItem(goocanvas.Group):
         self.text.set_property('clip_path', path)
 
 
-class TimelineItem(goocanvas.Group):
+class TimelineItem(GooCanvas.CanvasGroup):
     """
     A canvas item representing a timeline.
     """
@@ -1308,8 +1309,9 @@ class TimelineItem(goocanvas.Group):
         self._timeline_text = {}
         for n in range(24):
             caption = datetime.time(n).strftime(self.time_format)
-            self._timeline_rect[n] = goocanvas.Rect(parent=self)
-            self._timeline_text[n] = goocanvas.Text(parent=self, text=caption)
+            self._timeline_rect[n] = GooCanvas.CanvasRect(parent=self)
+            self._timeline_text[n] = GooCanvas.CanvasText(
+                parent=self, text=caption)
 
         if self.x is not None:
             self.update()
@@ -1321,10 +1323,10 @@ class TimelineItem(goocanvas.Group):
         for n in range(24):
             natural_extents = self._timeline_text[n].get_natural_extents()
             logical_rect = natural_extents[1]
-            logical_height = max(logical_height, logical_rect[3])
+            logical_height = max(logical_height, logical_rect.height)
             ink_rect = natural_extents[0]
-            self.ink_padding_top = max(self.ink_padding_top, ink_rect[0])
-        line_height = int(math.ceil(float(logical_height) / pango.SCALE))
+            self.ink_padding_top = max(self.ink_padding_top, ink_rect.x)
+        line_height = int(math.ceil(float(logical_height) / Pango.SCALE))
         return line_height
 
     @property
@@ -1334,9 +1336,9 @@ class TimelineItem(goocanvas.Group):
         if line_height < self.height / 24:
             line_height = self.height / 24
             pango_size = self._cal.props.font_desc.get_size()
-            padding_top = (line_height - pango_size / pango.SCALE) / 2
-            padding_top -= int(math.ceil(float(self.ink_padding_top) /
-                pango.SCALE))
+            padding_top = (line_height - pango_size / Pango.SCALE) / 2
+            padding_top -= int(math.ceil(
+                    float(self.ink_padding_top) / Pango.SCALE))
             self.padding_top = padding_top
         return line_height
 
@@ -1348,10 +1350,10 @@ class TimelineItem(goocanvas.Group):
             self._timeline_text[n].set_property('font-desc', font_desc)
             natural_extents = self._timeline_text[n].get_natural_extents()
             ink_rect = natural_extents[0]
-            ink_padding_left = max(ink_padding_left, ink_rect[0])
-            ink_max_width = max(ink_max_width, ink_rect[2])
-        self.width = int(math.ceil(float(ink_padding_left + ink_max_width)
-            / pango.SCALE))
+            ink_padding_left = max(ink_padding_left, ink_rect.x)
+            ink_max_width = max(ink_max_width, ink_rect.width)
+        self.width = int(math.ceil(
+                float(ink_padding_left + ink_max_width) / Pango.SCALE))
 
     def update(self):
         self._compute_width()

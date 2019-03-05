@@ -1,3 +1,5 @@
+* Use GTK+ 3
+* Remove support for Python 2
 * Add single day view
 
 Version 0.4 - 2018-06-26

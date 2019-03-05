@@ -1,6 +1,6 @@
 # This file is part of GooCalendar.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
-import gobject
+from gi.repository import GObject
 
 from . import util
 
@@ -44,16 +44,16 @@ class Event(object):
         return (self.start, self.end) < (other_event.start, other_event.start)
 
 
-class EventStore(gobject.GObject):
+class EventStore(GObject.GObject):
     __gsignals__ = {
-        'event-removed': (gobject.SIGNAL_RUN_FIRST,
-            gobject.TYPE_NONE,
-            (gobject.TYPE_PYOBJECT,)),
-        'event-added': (gobject.SIGNAL_RUN_FIRST,
-            gobject.TYPE_NONE,
-            (gobject.TYPE_PYOBJECT,)),
-        'events-cleared': (gobject.SIGNAL_RUN_FIRST,
-            gobject.TYPE_NONE, ())}
+        'event-removed': (GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (GObject.TYPE_PYOBJECT,)),
+        'event-added': (GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (GObject.TYPE_PYOBJECT,)),
+        'events-cleared': (GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE, ())}
 
     def __init__(self):
         super(EventStore, self).__init__()
@@ -90,9 +90,9 @@ class EventStore(gobject.GObject):
         and end times.
         """
         if not start and not end:
-            return self._events.values()
+            return list(self._events.values())
         events = []
-        for event in self._events.values():
+        for event in list(self._events.values()):
             if util.event_intersects(event, start, end):
                 events.append(event)
         return events
