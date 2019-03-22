@@ -15,7 +15,7 @@ def read(fname):
 
 
 setup(name='GooCalendar',
-    version='0.5',
+    version='0.6',
     author='Cédric Krier',
     author_email='cedric.krier@b2ck.com',
     url='https://goocalendar.tryton.org/',
