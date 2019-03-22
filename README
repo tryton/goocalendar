@@ -1,7 +1,7 @@
 GooCalendar
 ===========
 
-A calendar widget for GTK using PyGoocanvas
+A calendar widget for GTK using GooCanvas
 
 Nutshell
 --------
