@@ -4,7 +4,7 @@
 .. module:: goocalendar
    :synopsis: Calendar widget using GooCanvas
 .. moduleauthor:: Samuel Abels <http://debain.org>
-.. moduleauthor:: Cedric Krier <cedric.krier@b2ck.com>
+.. moduleauthor:: Cédric Krier <cedric.krier@b2ck.com>
 .. moduleauthor:: Antoine Smolders <smoldersan@gmail.com>
 .. sectionauthor:: Antoine Smolders <smoldersan@gmail.com>
 
