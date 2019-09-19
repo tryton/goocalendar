@@ -118,7 +118,7 @@ class Calendar(GooCanvas.Canvas):
         if prop.name == 'font-desc':
             if self._font_desc is None:
                 self._font_desc = self.get_style_context().get_property(
-                    'font', Gtk.StateFlags.NORMAL)
+                    'font', Gtk.StateFlags.NORMAL).copy()
             return self._font_desc
         else:
             return self.__props[prop.name]
