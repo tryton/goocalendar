@@ -32,8 +32,7 @@ class Calendar(GooCanvas.Canvas):
             "The color of the body", GObject.ParamFlags.READWRITE),
         'today-body-color': (GObject.TYPE_STRING, 'ivory', "Today Body Color",
             "The color of the today body", GObject.ParamFlags.READWRITE),
-        # TODO font
-        'font-desc': (GObject.TYPE_PYOBJECT, "Font Description",
+        'font': (GObject.TYPE_STRING, '', "Font",
             "The attributes specifying which font to use",
             GObject.ParamFlags.READWRITE),
         }
@@ -49,8 +48,8 @@ class Calendar(GooCanvas.Canvas):
             'inactive-border-color': '#E8E7E8',
             'body-color': 'white',
             'today-body-color': 'ivory',
+            'font': '',
             }
-        self._font_desc = None
         self._selected_day = None
         self._bg_rect = None
         self._timeline = None
@@ -109,19 +108,15 @@ class Calendar(GooCanvas.Canvas):
             self.days.append(box)
 
     def do_set_property(self, prop, value):
-        if prop.name == 'font-desc':
-            self._font_desc = value
-        else:
-            self.__props[prop.name] = value
+        self.__props[prop.name] = value
 
     def do_get_property(self, prop):
-        if prop.name == 'font-desc':
-            if self._font_desc is None:
-                self._font_desc = self.get_style_context().get_property(
-                    'font', Gtk.StateFlags.NORMAL).copy()
-            return self._font_desc
-        else:
-            return self.__props[prop.name]
+        return self.__props[prop.name]
+
+    @property
+    def font_size(self):
+        return self.get_style_context().get_property(
+            'font', Gtk.StateFlags.NORMAL).get_size()
 
     def select(self, new_date):
         cal = calendar.Calendar(self.firstweekday)
@@ -253,14 +248,13 @@ class Calendar(GooCanvas.Canvas):
         """
         Draws the currently selected day.
         """
-        pango_size = self.props.font_desc.get_size()
         x, y, w, h = self.get_bounds()
         timeline_w = self._timeline.width
         dayno = self.selected_date.weekday()
         day_name = calendar.day_name[dayno]
         # Sum the needed space for the date before the day_name
         caption_size = len(day_name) + 3
-        day_width_min = caption_size * pango_size / Pango.SCALE
+        day_width_min = caption_size * self.font_size / Pango.SCALE
         day_width_max = (w - timeline_w)
         self._day_width = max(day_width_min, day_width_max)
         self._day_height = h
@@ -307,12 +301,11 @@ class Calendar(GooCanvas.Canvas):
         """
         Draws the currently selected week.
         """
-        pango_size = self.props.font_desc.get_size()
         x, y, w, h = self.get_bounds()
         timeline_w = self._timeline.width
         caption_size = max(len(day_name) for day_name in calendar.day_name)
         caption_size += 3  # The needed space for the date before the day_name
-        day_width_min = caption_size * pango_size / Pango.SCALE
+        day_width_min = caption_size * self.font_size / Pango.SCALE
         day_width_max = (w - timeline_w) / 7
         self._day_width = max(day_width_min, day_width_max)
         self._day_height = h
@@ -372,10 +365,9 @@ class Calendar(GooCanvas.Canvas):
         Draws the currently selected month.
         """
         x1, y1, w, h = self.get_bounds()
-        pango_size = self.props.font_desc.get_size()
         caption_size = max(len(day_name) for day_name in calendar.day_name)
         caption_size += 3  # The needed space for the date before the day_name
-        day_width_min = caption_size * pango_size / Pango.SCALE
+        day_width_min = caption_size * self.font_size / Pango.SCALE
         day_width_max = w / 7
         self._day_width = max(day_width_min, day_width_max)
         self._day_height = h / 6
@@ -1040,7 +1032,7 @@ class DayItem(GooCanvas.CanvasGroup):
         week_day = self.date.weekday()
         day_name = calendar.day_name[week_day]
         caption = '%s %s' % (self.date.day, day_name)
-        self.text.set_property('font-desc', self._cal.props.font_desc)
+        self.text.set_property('font', self._cal.props.font)
         self.text.set_property('text', caption)
         logical_height = self.text.get_natural_extents()[1].height
         line_height = int(math.ceil(float(logical_height) / Pango.SCALE))
@@ -1132,7 +1124,7 @@ class EventItem(GooCanvas.CanvasGroup):
         # Create canvas items.
         self.box = GooCanvas.CanvasRect(parent=self)
         self.text = GooCanvas.CanvasText(parent=self)
-        self.text.set_property('font-desc', self._cal.props.font_desc)
+        self.text.set_property('font', self._cal.props.font)
         logical_height = self.text.get_natural_extents()[1].height
         self.line_height = logical_height / Pango.SCALE
 
@@ -1335,19 +1327,18 @@ class TimelineItem(GooCanvas.CanvasGroup):
         line_height = self.min_line_height
         if line_height < self.height / 24:
             line_height = self.height / 24
-            pango_size = self._cal.props.font_desc.get_size()
-            padding_top = (line_height - pango_size / Pango.SCALE) / 2
+            padding_top = (line_height - self._cal.font_size / Pango.SCALE) / 2
             padding_top -= int(math.ceil(
                     float(self.ink_padding_top) / Pango.SCALE))
             self.padding_top = padding_top
         return line_height
 
     def _compute_width(self):
-        font_desc = self._cal.props.font_desc
+        font = self._cal.props.font
         ink_padding_left = 0
         ink_max_width = 0
         for n in range(24):
-            self._timeline_text[n].set_property('font-desc', font_desc)
+            self._timeline_text[n].set_property('font', font)
             natural_extents = self._timeline_text[n].get_natural_extents()
             ink_rect = natural_extents[0]
             ink_padding_left = max(ink_padding_left, ink_rect.x)

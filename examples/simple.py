@@ -28,6 +28,7 @@ def on_key_pressed(widget, event):
 window = Gtk.Window()
 event_store = EventStore()
 calendar = Calendar(event_store)
+calendar.set_property('font', '12px')
 calendar.set_has_tooltip(True)
 
 # Normal events.

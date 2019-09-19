@@ -274,7 +274,7 @@ Instance properties:
 
     The color of the today body. Default: ivory
 
-``font-desc``
+``font``
 
     The attributes specifying which font to use.
 
