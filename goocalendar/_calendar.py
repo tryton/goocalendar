@@ -700,7 +700,7 @@ class Calendar(GooCanvas.Canvas):
                     event_item.width = column_width - 4
                     if columnno != (parallel - 1):
                         event_item.width += column_width / 1.2
-                    event_item.height = y_off2
+                    event_item.height = max(event_item.line_height, y_off2)
                     if event.start < event1_start and event.end > event1_end:
                         event_item.type = 'mid'
                     elif event.start < event1_start:
