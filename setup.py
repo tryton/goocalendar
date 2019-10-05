@@ -5,6 +5,7 @@
 
 import io
 import os
+import re
 from setuptools import setup, find_packages
 
 
@@ -14,8 +15,13 @@ def read(fname):
         'r', encoding='utf-8').read()
 
 
+def get_version():
+    init = read(os.path.join('goocalendar', '__init__.py'))
+    return re.search("__version__ = '([0-9.]*)'", init).group(1)
+
+
 setup(name='GooCalendar',
-    version='0.6',
+    version=get_version(),
     author='Cédric Krier',
     author_email='cedric.krier@b2ck.com',
     url='https://goocalendar.tryton.org/',
