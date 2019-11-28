@@ -1325,8 +1325,8 @@ class TimelineItem(GooCanvas.CanvasGroup):
     def line_height(self):
         self.padding_top = 0
         line_height = self.min_line_height
-        if line_height < self.height / 24:
-            line_height = self.height / 24
+        if line_height < self.height // 24:
+            line_height = self.height // 24
             padding_top = (line_height - self._cal.font_size / Pango.SCALE) / 2
             padding_top -= int(math.ceil(
                     float(self.ink_padding_top) / Pango.SCALE))
