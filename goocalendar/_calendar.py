@@ -200,7 +200,7 @@ class Calendar(GooCanvas.Canvas):
         if self._event_store:
             self._event_store.disconnect(self._event_removed_sigid)
             self._event_store.disconnect(self._event_added_sigid)
-            self._event_store_disconnect(self._events_cleared_sigid)
+            self._event_store.disconnect(self._events_cleared_sigid)
 
         # Set and connect new event_store
         self._event_store = event_store
