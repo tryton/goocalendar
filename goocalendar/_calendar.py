@@ -514,7 +514,7 @@ class Calendar(GooCanvas.Canvas):
         events.sort(key=util.event_days, reverse=True)
 
         # Draw all-day events, longest event first.
-        max_y = self._selected_day.line_height
+        max_y = 0
         non_all_day_events = []
         for event in events:
             event.event_items = []
@@ -601,6 +601,8 @@ class Calendar(GooCanvas.Canvas):
                     event_item.width -= 6
                     event_item.type = 'leftright'
                 event_item.update()
+        # Add the day title
+        max_y += self._selected_day.line_height
 
         if self.view == "month":
             return
