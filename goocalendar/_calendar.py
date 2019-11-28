@@ -466,8 +466,8 @@ class Calendar(GooCanvas.Canvas):
             return days
         raise Exception('Days not found: %s %s' % (event.start, end))
 
-    def _find_free_line(self, days):
-        for line in range(days[0].n_lines):
+    def _find_free_line(self, days, n_lines):
+        for line in range(n_lines):
             free = True
             for day in days:
                 if line in day.lines:
@@ -526,7 +526,10 @@ class Calendar(GooCanvas.Canvas):
 
             # Find a line that is free in all of the days.
             days = self._get_day_items(event)
-            free_line = self._find_free_line(days)
+            n_lines = days[0].n_lines
+            if self.view in {"week", "day"}:
+                n_lines = min(n_lines // 2, max(n_lines - 24, 0))
+            free_line = self._find_free_line(days, n_lines)
             if free_line is None:
                 for day in days:
                     day.show_indic = True
