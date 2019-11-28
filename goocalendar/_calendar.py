@@ -539,7 +539,9 @@ class Calendar(GooCanvas.Canvas):
             all_day_events_height += 1  # 1px padding-top
             max_y = max(all_day_events_height, max_y)
             for day in days:
-                day.lines[free_line] = 1
+                for i in range(free_line,
+                        free_line + len(event.caption.splitlines())):
+                    day.lines[i] = 1
 
             # Split days into weeks.
             weeks = []
