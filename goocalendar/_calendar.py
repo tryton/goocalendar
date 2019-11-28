@@ -268,11 +268,11 @@ class Calendar(GooCanvas.Canvas):
         weeks = util.my_monthdatescalendar(cal, self.selected_date)
         for weekno, week in enumerate(weeks):
             # Hide all days that are not part of the current day
+            for i, date in enumerate(week):
+                box = self.days[weekno * 7 + i]
+                box.set_property(
+                    'visibility', GooCanvas.CanvasItemVisibility.INVISIBLE)
             if self.selected_date not in week:
-                for dayno, date in enumerate(week):
-                    box = self.days[weekno * 7 + dayno]
-                    box.set_property(
-                        'visibility', GooCanvas.CanvasItemVisibility.INVISIBLE)
                 continue
 
             if self.selected_date == datetime.date.today():
@@ -281,7 +281,7 @@ class Calendar(GooCanvas.Canvas):
                 the_body_color = self.props.body_color
 
             # Draw.
-            box = self.days[weekno * 7 + dayno]
+            box = self.days[weekno * 7 + dayno + 1]
             box.x = timeline_w
             box.y = 0
             box.width = self._day_width - 2
