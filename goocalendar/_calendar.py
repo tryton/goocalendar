@@ -571,7 +571,7 @@ class Calendar(GooCanvas.Canvas):
                 self.get_root_item().add_child(event_item, -1)
                 if self.view == "day":
                     x_start = timeline_witdh
-                    width = bound_width
+                    width = bound_width - timeline_witdh
                 else:
                     x_start = day.x
                     width = (day.width + 2) * len(week)
@@ -684,7 +684,7 @@ class Calendar(GooCanvas.Canvas):
                     y_off2 = bottom_offset_mins * self.minute_height
                     if self.view == "day":
                         x_start = timeline_witdh
-                        column_width = w / parallel
+                        column_width = (w - timeline_witdh) / parallel
                     else:
                         column_width = day.width / parallel
                         x_start = day.x
