@@ -1,3 +1,4 @@
+* Add support for Python 3.8
 * Replace font-desc properties by font
 
 Version 0.6 - 2019-10-05
