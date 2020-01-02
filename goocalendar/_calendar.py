@@ -606,7 +606,8 @@ class Calendar(GooCanvas.Canvas):
                     event_item.type = 'leftright'
                 event_item.update()
         # Add the day title
-        max_y += self._selected_day.line_height
+        if self._selected_day:
+            max_y += self._selected_day.line_height
 
         if self.view == "month":
             return
