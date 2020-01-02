@@ -479,7 +479,6 @@ class Calendar(GooCanvas.Canvas):
 
     def draw_events(self):
         _, _, bound_width, _ = self.get_bounds()
-        timeline_witdh = self._timeline.width
         # Clear previous events.
         for item in self._event_items:
             item.remove()
@@ -575,8 +574,8 @@ class Calendar(GooCanvas.Canvas):
                 self._event_items.append(event_item)
                 self.get_root_item().add_child(event_item, -1)
                 if self.view == "day":
-                    x_start = timeline_witdh
-                    width = bound_width - timeline_witdh
+                    x_start = self._timeline.width
+                    width = bound_width - self._timeline.width
                 else:
                     x_start = day.x
                     width = (day.width + 2) * len(week)
@@ -688,8 +687,8 @@ class Calendar(GooCanvas.Canvas):
                     y_off1 = top_offset_mins * self.minute_height
                     y_off2 = bottom_offset_mins * self.minute_height
                     if self.view == "day":
-                        x_start = timeline_witdh
-                        column_width = (w - timeline_witdh) / parallel
+                        x_start = self._timeline.width
+                        column_width = (w - self._timeline.width) / parallel
                     else:
                         column_width = day.width / parallel
                         x_start = day.x
@@ -1314,6 +1313,8 @@ class TimelineItem(GooCanvas.CanvasGroup):
 
         if self.x is not None:
             self.update()
+        else:
+            self._compute_width()
 
     @property
     def min_line_height(self):
