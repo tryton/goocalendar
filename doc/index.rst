@@ -377,7 +377,7 @@ An :class:`Event <goocalendar.Event>` represents an event in a
 :class:`Calendar <goocalendar.Calendar>`.
 
 .. class:: goocalendar.Event(caption, start[, end[, all_day[, text_color \
-   [, bg_color]]]])
+   [, bg_color[, editable]]]]])
 
    *caption* argument is mandatory and will be the string displayed on the
    event.  *start* argument is mandatory and determines the starting time of
@@ -387,7 +387,8 @@ An :class:`Event <goocalendar.Event>` represents an event in a
    All other arguments are optional. *end* argument may be a datetime,
    all_day a boolean value. An event will be considered as all day
    event if no *end* argument is supplied. *text_color* and *bg_color*
-   arguments are supposed to be color strings.
+   arguments are supposed to be color strings. *editable* determines if the
+   event can be modified.
 
 Instance attributes:
 
@@ -420,6 +421,11 @@ Instance attributes:
 .. attribute:: bg_color
 
    String determining background color.
+
+.. attribute:: editable
+
+    Boolean determining if the event can be modified.
+    Default value is `True`.
 
 .. attribute:: multidays
 

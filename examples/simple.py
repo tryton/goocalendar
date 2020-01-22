@@ -58,6 +58,13 @@ event = Event('Event number 4',
     bg_color='yellow')
 event_store.add(event)
 
+# A non editable event.
+event = Event("Non editable",
+    datetime.datetime(2007, 10, 9, 10),
+    datetime.datetime(2007, 10, 9, 11),
+    editable=False)
+event_store.add(event)
+
 # A singularity event.
 event = Event('Singularity',
     datetime.datetime(2007, 10, 7, 12),

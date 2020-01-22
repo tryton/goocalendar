@@ -792,80 +792,86 @@ class Calendar(GooCanvas.Canvas):
     @util.left_click
     def on_event_item_button_press_event(self, event_item, rect, event):
 
-        # Drag and drop starting coordinates
-        self._drag_x = event.x
-        self._drag_y = event.y
-        self._drag_height = 0
-        self._drag_start_date = self.get_cur_pointed_date(event.x, event.y)
-        self._drag_date = self._drag_start_date
-        self.set_has_tooltip(False)
-        event_item.raise_(None)
-        event_item.transparent = True
+        if event_item.event.editable:
+            # Drag and drop starting coordinates
+            self._drag_x = event.x
+            self._drag_y = event.y
+            self._drag_height = 0
+            self._drag_start_date = self.get_cur_pointed_date(event.x, event.y)
+            self._drag_date = self._drag_start_date
+            self.set_has_tooltip(False)
+            event_item.raise_(None)
+            event_item.transparent = True
 
-        event_item.width = self._day_width - 6  # Biggest event width
-        event_date = event_item.event.start.date()
-        daysdelta = self._drag_start_date - event_date
-        if self.view == 'week':
-            event_item.x = event_item.left_border
-            if ((event_item.event.all_day or event_item.event.multidays)
-                    and self._drag_start_date != event_date):
-                event_item.x += daysdelta.days * self._day_width
-                event_item.event.start += daysdelta
-                if event_item.event.end:
-                    event_item.event.end += daysdelta
-            else:
+            event_item.width = self._day_width - 6  # Biggest event width
+            event_date = event_item.event.start.date()
+            daysdelta = self._drag_start_date - event_date
+            if self.view == 'week':
+                event_item.x = event_item.left_border
+                if ((event_item.event.all_day or event_item.event.multidays)
+                        and self._drag_start_date != event_date):
+                    event_item.x += daysdelta.days * self._day_width
+                    event_item.event.start += daysdelta
+                    if event_item.event.end:
+                        event_item.event.end += daysdelta
+                else:
+                    for item in event_item.event.event_items:
+                        if item != event_item:
+                            item.remove()
+                            self._event_items.remove(item)
+
+                    event_item.height = 2 * self._line_height
+                    day_no = (int((event.x - self._timeline.width)
+                        / self._day_width))
+                    day_off = day_no * self._day_width + 2
+                    event_item.x = self._timeline.width + day_off
+                    if (event_item.no_caption or event.y < event_item.y
+                            or event.y > (event_item.y + event_item.height)):
+                        # click was not performed inside the new day item
+                        level_height = self.minute_height * self.MIN_PER_LEVEL
+                        cur_level = int((event.y - self._timeline.y)
+                            / level_height)
+                        nb_levels_per_hour = 60 / self.MIN_PER_LEVEL
+                        # click is in the middle
+                        cur_level -= nb_levels_per_hour
+                        if cur_level < 0:
+                            cur_level = 0
+                        event_item.y = (
+                            self._timeline.y + cur_level * level_height)
+                        nb_minutes = cur_level * self.MIN_PER_LEVEL
+                        hours, minutes = map(int, divmod(nb_minutes, 60))
+                        old_start = event_item.event.start
+                        new_start = \
+                            datetime.datetime.combine(self._drag_start_date,
+                            datetime.time(hours, minutes))
+                        event_item.event.start = new_start
+                        delta = new_start - old_start
+                        if event_item.event.end:
+                            event_item.event.end += delta
+                    event_item.no_caption = False
+            elif self.view == 'month':
                 for item in event_item.event.event_items:
                     if item != event_item:
                         item.remove()
                         self._event_items.remove(item)
-
-                event_item.height = 2 * self._line_height
-                day_no = (int((event.x - self._timeline.width)
-                    / self._day_width))
-                day_off = day_no * self._day_width + 2
-                event_item.x = self._timeline.width + day_off
-                if (event_item.no_caption or event.y < event_item.y
-                        or event.y > (event_item.y + event_item.height)):
-                    # click was not performed inside the new day item
-                    level_height = self.minute_height * self.MIN_PER_LEVEL
-                    cur_level = int((event.y - self._timeline.y)
-                        / level_height)
-                    nb_levels_per_hour = 60 / self.MIN_PER_LEVEL
-                    cur_level -= nb_levels_per_hour  # click is in the middle
-                    if cur_level < 0:
-                        cur_level = 0
-                    event_item.y = self._timeline.y + cur_level * level_height
-                    nb_minutes = cur_level * self.MIN_PER_LEVEL
-                    hours, minutes = map(int, divmod(nb_minutes, 60))
-                    old_start = event_item.event.start
-                    new_start = \
-                        datetime.datetime.combine(self._drag_start_date,
-                        datetime.time(hours, minutes))
-                    event_item.event.start = new_start
-                    delta = new_start - old_start
-                    if event_item.event.end:
-                        event_item.event.end += delta
-                event_item.no_caption = False
-        elif self.view == 'month':
-            for item in event_item.event.event_items:
-                if item != event_item:
-                    item.remove()
-                    self._event_items.remove(item)
-                else:
-                    event_item.event.start += daysdelta
-                    if event_item.event.end:
-                        event_item.event.end += daysdelta
-                    weekno = int(event.y / self._day_height)
-                    day_no = int(event.x / self._day_width)
-                    event_item.y = weekno * self._day_height
-                    event_item.y += int(self._line_height) + 1  # padding-top
-                    event_item.x = day_no * self._day_width + 2  # padding-left
-                    item_height = self._line_height + 2  # 2px between items
-                    while event_item.y < event.y:
-                        event_item.y += item_height
-                    event_item.y -= item_height
-                    event_item.no_caption = False
-        event_item.update()
+                    else:
+                        event_item.event.start += daysdelta
+                        if event_item.event.end:
+                            event_item.event.end += daysdelta
+                        weekno = int(event.y / self._day_height)
+                        day_no = int(event.x / self._day_width)
+                        event_item.y = weekno * self._day_height
+                        event_item.y += (
+                            int(self._line_height) + 1)  # padding-top
+                        event_item.x = (
+                            day_no * self._day_width + 2)  # padding-left
+                        item_height = (
+                            self._line_height + 2)  # 2px between items
+                        while event_item.y < event.y:
+                            event_item.y += item_height
+                        event_item.y -= item_height
+                        event_item.no_caption = False
+            event_item.update()
         self.emit('event-pressed', event_item.event)
 
         if self._is_double_click(event):
