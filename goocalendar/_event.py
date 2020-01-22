@@ -35,7 +35,7 @@ class Event(object):
 
     def __eq__(self, other_event):
         if not isinstance(other_event, Event):
-            raise NotImplemented
+            return NotImplemented
         return (self.start, self.end) == (other_event.start, other_event.end)
 
     def __lt__(self, other_event):
@@ -44,7 +44,7 @@ class Event(object):
             end = event.end if event.end is not None else event.start
             return start, end
         if not isinstance(other_event, Event):
-            raise NotImplemented
+            return NotImplemented
         return convert(self) < convert(other_event)
 
 
