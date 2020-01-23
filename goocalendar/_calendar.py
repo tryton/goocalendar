@@ -836,8 +836,7 @@ class Calendar(GooCanvas.Canvas):
                         cur_level = 0
                     event_item.y = self._timeline.y + cur_level * level_height
                     nb_minutes = cur_level * self.MIN_PER_LEVEL
-                    minutes = nb_minutes % 60
-                    hours = nb_minutes / 60
+                    hours, minutes = map(int, divmod(nb_minutes, 60))
                     old_start = event_item.event.start
                     new_start = \
                         datetime.datetime.combine(self._drag_start_date,
