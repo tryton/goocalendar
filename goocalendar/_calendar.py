@@ -40,6 +40,7 @@ class Calendar(GooCanvas.Canvas):
     def __init__(self, event_store=None, view="month", time_format="%H:%M",
             firstweekday=calendar.SUNDAY):
         super(Calendar, self).__init__()
+        settings = Gtk.Settings.get_default()
         self.__props = {
             'text-color': '#2E3634',
             'inactive-text-color': '#8B8F8E',
@@ -48,7 +49,7 @@ class Calendar(GooCanvas.Canvas):
             'inactive-border-color': '#E8E7E8',
             'body-color': 'white',
             'today-body-color': 'ivory',
-            'font': '',
+            'font': settings.get_property('gtk-font-name'),
             }
         self._selected_day = None
         self._bg_rect = None
