@@ -132,7 +132,9 @@ class Calendar(GooCanvas.Canvas):
         elif self.view == "week":
             old_first_weekday = util.first_day_of_week(cal, old_date)
             new_first_weekday = util.first_day_of_week(cal, new_date)
-            page_changed = old_first_weekday != new_first_weekday
+            page_changed = (
+                old_first_weekday != new_first_weekday
+                or old_date.month != new_date.month)
         elif self.view == "day":
             page_changed = old_date != new_date
 
