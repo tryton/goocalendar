@@ -282,7 +282,7 @@ class Calendar(GooCanvas.Canvas):
                 the_body_color = self.props.body_color
 
             # Draw.
-            box = self.days[weekno * 7 + dayno + 1]
+            box = self.days[weekno * 7 + dayno]
             box.x = timeline_w
             box.y = 0
             box.width = self._day_width - 2
