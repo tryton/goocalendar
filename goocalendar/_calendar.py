@@ -436,7 +436,7 @@ class Calendar(GooCanvas.Canvas):
 
     def _get_day_item(self, find_date):
         cal = calendar.Calendar(self.firstweekday)
-        weeks = util.my_monthdatescalendar(cal, find_date)
+        weeks = util.my_monthdatescalendar(cal, self.selected_date)
         for weekno, week in enumerate(weeks):
             for dayno, date in enumerate(week):
                 if date == find_date:
