@@ -22,11 +22,19 @@ def get_version():
 
 setup(name='GooCalendar',
     version=get_version(),
-    author='Cédric Krier',
-    author_email='cedric.krier@b2ck.com',
-    url='https://goocalendar.tryton.org/',
     description='A calendar widget for GTK using PyGoocanvas',
     long_description=read('README'),
+    author='Tryton',
+    author_email='goocalendar@tryton.org',
+    url='https://pypi.python.org/pypi/goocalendar',
+    download_url='https://downloads.tryton.org/goocalendar/',
+    project_urls={
+        "Bug Tracker": 'https://goocalendar.tryton.org/',
+        "Documentation": 'https://goocalendar.readthedocs.org/',
+        "Forum": 'https://discuss.tryton.org/tags/goocalendar',
+        "Source Code": 'https://hg.tryton.org/goocalendar/',
+        },
+    keywords='calendar GTK GooCanvas widget',
     packages=find_packages(),
     classifiers=[
         'Development Status :: 5 - Production/Stable',
