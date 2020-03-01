@@ -4,8 +4,8 @@ import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('Gdk', '3.0')
 gi.require_version('GooCanvas', '2.0')
-from ._calendar import Calendar
-from ._event import Event, EventStore
+from ._calendar import Calendar  # noqa: E402
+from ._event import Event, EventStore  # noqa: E402
 
 __all__ = ['Calendar', 'EventStore', 'Event']
 __version__ = '0.7.1'

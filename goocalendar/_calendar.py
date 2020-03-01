@@ -745,10 +745,11 @@ class Calendar(GooCanvas.Canvas):
         gtk_settings = Gtk.Settings.get_default()
         double_click_distance = gtk_settings.props.gtk_double_click_distance
         double_click_time = gtk_settings.props.gtk_double_click_time
-        if (self._last_click_x is not None and
-                event.time < (self._last_click_time + double_click_time) and
-                abs(event.x - self._last_click_x) <= double_click_distance and
-                abs(event.y - self._last_click_y) <= double_click_distance):
+        if (self._last_click_x is not None
+                and event.time < (self._last_click_time + double_click_time)
+                and abs(event.x - self._last_click_x) <= double_click_distance
+                and abs(event.y - self._last_click_y) <= double_click_distance
+                ):
             self._last_click_x = None
             self._last_click_y = None
             self._last_click_time = None
