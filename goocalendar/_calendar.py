@@ -619,9 +619,10 @@ class Calendar(GooCanvas.Canvas):
         self._timeline.set_property(
             'visibility', GooCanvas.CanvasItemVisibility.VISIBLE)
         x, y, w, h = self.get_bounds()
+        max_y += (h - max_y) % 24
         self._timeline.x = x
         self._timeline.y = max_y
-        self._timeline.height = h - max_y - 2
+        self._timeline.height = h - max_y
         self._timeline.line_color = self.props.body_color
         self._timeline.bg_color = self.props.border_color
         self._timeline.text_color = self.props.text_color
