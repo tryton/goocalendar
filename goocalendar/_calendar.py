@@ -16,6 +16,8 @@ class Calendar(GooCanvas.Canvas):
     __gproperties__ = {
         'text-color': (GObject.TYPE_STRING, '#2E3634', "Text Color",
             "The color of the text", GObject.ParamFlags.READWRITE),
+        'selected-text-color': (GObject.TYPE_STRING, '#2E3634', "Text Color",
+            "Selected color of the text", GObject.ParamFlags.READWRITE),
         'inactive-text-color': (GObject.TYPE_STRING, '#8B8F8E',
             "Inactive Text Color", "The color of the inactive text",
             GObject.ParamFlags.READWRITE),
@@ -42,6 +44,7 @@ class Calendar(GooCanvas.Canvas):
         settings = Gtk.Settings.get_default()
         self.__props = {
             'text-color': '#2E3634',
+            'selected-text-color': '#2E3634',
             'inactive-text-color': '#8B8F8E',
             'border-color': '#D2D0D2',
             'selected-border-color': '#5EC590',
@@ -160,9 +163,12 @@ class Calendar(GooCanvas.Canvas):
         # Swap border colors.
         new_day = self.days[found]
         old_border_color = old_day.border_color
+        old_title_text_color = old_day.title_text_color
         old_day.full_border = False
         old_day.border_color = new_day.border_color
+        old_day.title_text_color = new_day.title_text_color
         new_day.border_color = old_border_color
+        new_day.title_text_color = old_title_text_color
         new_day.full_border = True
 
         # Redraw.
@@ -293,8 +299,7 @@ class Calendar(GooCanvas.Canvas):
             box.full_border = True
             box.border_color = self.props.selected_border_color
             box.body_color = the_body_color
-            box.title_text_color = self.props.text_color
-            box.event_text_color = self.props.text_color
+            box.title_text_color = self.props.selected_text_color
             box.set_property(
                 'visibility', GooCanvas.CanvasItemVisibility.VISIBLE)
             box.update()
@@ -334,8 +339,10 @@ class Calendar(GooCanvas.Canvas):
                 selected = current_date == self.selected_date
                 if selected:
                     the_border_color = self.props.selected_border_color
+                    the_text_color = self.props.selected_text_color
                 else:
                     the_border_color = self.props.border_color
+                    the_text_color = self.props.text_color
                 if current_date == datetime.date.today():
                     the_body_color = self.props.today_body_color
                 else:
@@ -352,8 +359,7 @@ class Calendar(GooCanvas.Canvas):
                 box.full_border = selected
                 box.border_color = the_border_color
                 box.body_color = the_body_color
-                box.title_text_color = self.props.text_color
-                box.event_text_color = self.props.text_color
+                box.title_text_color = the_text_color
                 box.set_property(
                     'visibility', GooCanvas.CanvasItemVisibility.VISIBLE)
                 box.update()
@@ -398,6 +404,7 @@ class Calendar(GooCanvas.Canvas):
                 selected = date == self.selected_date
                 if selected:
                     the_border_color = self.props.selected_border_color
+                    the_text_color = self.props.selected_text_color
                 if date == datetime.date.today():
                     the_body_color = self.props.today_body_color
                 else:
@@ -414,7 +421,6 @@ class Calendar(GooCanvas.Canvas):
                 box.border_color = the_border_color
                 box.body_color = the_body_color
                 box.title_text_color = the_text_color
-                box.event_text_color = the_text_color
                 box.type = 'month'
                 box.set_property(
                     'visibility', GooCanvas.CanvasItemVisibility.VISIBLE)

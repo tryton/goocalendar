@@ -250,6 +250,10 @@ Instance properties:
 
     The color of the text. Default: #2E3634
 
+``selected-text-color``
+
+    The color of the selection text. Default: #2E3634
+
 ``inactive-text-color``
 
     The color of the inactive text. Default: #8B8F8E
