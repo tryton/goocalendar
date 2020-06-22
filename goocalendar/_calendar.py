@@ -3,7 +3,6 @@
 import datetime
 import calendar
 import math
-from operator import add
 
 from gi.repository import Gdk, GObject, GooCanvas, Gtk, Pango
 
@@ -1198,14 +1197,7 @@ class EventItem(GooCanvas.CanvasGroup):
             self.box.set_property('width', self.width)
             self.box.set_property('height', self.height)
             self.box.set_property('stroke_color', the_event_bg_color)
-            bg_rgba_color = self.box.get_property('stroke_color_rgba')
-            bg_colors = list(util.rgba_to_colors(bg_rgba_color))
-            # We make background color 1/4 brighter (+64 over 255)
-            bg_colors[:3] = list(map(min,
-                list(map(add, bg_colors[:3], (64,) * 3)), (255,) * 3))
-            bg_colors = util.colors_to_rgba(*bg_colors)
-            self.box.set_property('fill_color_rgba', bg_colors)
-
+            self.box.set_property('fill_color', the_event_bg_color)
             # Alpha color is set to half of 255, i.e an opacity of 5O percents
             transparent_color = self.box.get_property('fill_color_rgba') - 128
             if self.transparent:
@@ -1271,12 +1263,7 @@ class EventItem(GooCanvas.CanvasGroup):
             self.box.set_property('width', self.width)
             self.box.set_property('height', self.height)
             self.box.set_property('stroke_color', the_event_bg_color)
-            bg_rgba_color = self.box.get_property('stroke_color_rgba')
-            bg_colors = list(util.rgba_to_colors(bg_rgba_color))
-            bg_colors[:3] = list(map(min,
-                list(map(add, bg_colors[:3], (64,) * 3)), (255,) * 3))
-            bg_colors = util.colors_to_rgba(*bg_colors)
-            self.box.set_property('fill_color_rgba', bg_colors)
+            self.box.set_property('fill_color', the_event_bg_color)
             transparent_color = self.box.get_property('fill_color_rgba') - 128
             if self.transparent:
                 self.box.set_property('stroke_color_rgba', transparent_color)
