@@ -47,9 +47,8 @@ Instance attributes:
 
 .. attribute:: selected_date
 
-   `datetime.date
-   <http://docs.python.org/library/datetime.html#date-objects>`_
-   which determines the current selected day in the calendar.
+   :py:class:`datetime.date` which determines the current selected day in the
+   calendar.
 
 .. attribute:: firstweekday
 
@@ -60,8 +59,7 @@ Instance methods:
 .. method:: select(date)
 
    Select the given date in the calendar. Date should be a
-   `datetime.date
-   <http://docs.python.org/library/datetime.html#date-objects>`_.
+   :py:class:`datetime.date`.
 
 .. method:: previous_page()
 
@@ -154,9 +152,7 @@ Instance signals:
       The :class:`Calendar <goocalendar.Calendar>` that received the signal.
 
    *date*
-      `datetime.date
-      <http://docs.python.org/library/datetime.html#date-objects>`_
-      corresponding to the day pressed.
+      :py:class:`datetime.date` corresponding to the day pressed.
 
    *user_param1*
       the first user parameter (if any) specified with the connect() method.
@@ -175,9 +171,7 @@ Instance signals:
       The :class:`Calendar <goocalendar.Calendar>` that received the signal.
 
    *date*
-      `datetime.date
-      <http://docs.python.org/library/datetime.html#date-objects>`_
-      corresponding to the activated day.
+      :py:class:`datetime.date` corresponding to the activated day.
 
    *user_param1*
       the first user parameter (if any) specified with the connect() method
@@ -195,9 +189,7 @@ Instance signals:
       The :class:`Calendar <goocalendar.Calendar>` that received the signal.
 
    *date*
-      `datetime.date
-      <http://docs.python.org/library/datetime.html#date-objects>`_
-      corresponding to the new selected day.
+      :py:class:`datetime.date` corresponding to the new selected day.
 
    *user_param1*
       the first user parameter (if any) specified with the connect() method.
@@ -234,9 +226,8 @@ Instance signals:
       The :class:`Calendar <goocalendar.Calendar>` that received the signal.
 
    *date*
-      `datetime.date
-      <http://docs.python.org/library/datetime.html#date-objects>`_
-      corresponding to the selected day in the calendar.
+      :py:class:`datetime.date` corresponding to the selected day in the
+      calendar.
 
    *user_param1*
       the first user parameter (if any) specified with the connect() method.
@@ -385,9 +376,7 @@ An :class:`Event <goocalendar.Event>` represents an event in a
 
    *caption* argument is mandatory and will be the string displayed on the
    event.  *start* argument is mandatory and determines the starting time of
-   the event. It should be a
-   `datetime\
-   <http://docs.python.org/library/datetime.html#datetime-objects>`_.
+   the event. It should be a :py:class:`~datetime.datetime`.
    All other arguments are optional. *end* argument may be a datetime,
    all_day a boolean value. An event will be considered as all day
    event if no *end* argument is supplied. *text_color* and *bg_color*
@@ -406,13 +395,11 @@ Instance attributes:
 
 .. attribute:: start
 
-   `datetime <http://docs.python.org/library/datetime.html#datetime-objects>`_
-   determining event start time.
+   :py:class:`datetime.datetime` determining event start time.
 
 .. attribute:: end
 
-   `datetime <http://docs.python.org/library/datetime.html#datetime-objects>`_
-   determining event end time.
+   :py:class:`datetime.datetime` determining event end time.
 
 .. attribute:: all_day
 
