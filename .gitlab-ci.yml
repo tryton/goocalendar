@@ -1,0 +1,45 @@
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "trigger"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH =~ /^branch\/.*/
+
+stages:
+  - check
+
+.check:
+  stage: check
+  rules:
+    - if: $CI_MERGE_REQUEST_ID != null
+      when: always
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/tryton/ci
+
+check-doc:
+  extends: .check
+  image: sphinxdoc/sphinx
+  script:
+    - python -m sphinx -T -E -W -n -b html doc _build/html
+    - python -m sphinx -T -E -W -n -b linkcheck doc _build
+  rules:
+    - changes:
+        - doc/**/*
+
+check-flake8:
+  extends: .check
+  script:
+    - hg diff --rev s0 | flake8 --diff
+
+check-isort:
+  extends: .check
+  script:
+    - isort -m VERTICAL_GRID -p trytond -c `hg status --no-status --added --modified --rev s0`
+
+check-dist:
+  extends: .check
+  before_script:
+    - pip install twine
+  script:
+    - python setup.py sdist
+    - twine check dist/*
