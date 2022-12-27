@@ -1,7 +1,7 @@
 # This file is part of GooCalendar.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
-import datetime
 import calendar
+import datetime
 import math
 
 from gi.repository import Gdk, GObject, GooCanvas, Gtk, Pango

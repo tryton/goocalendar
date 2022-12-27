@@ -1,7 +1,7 @@
 # This file is part of GooCalendar.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
-import sys
 import datetime
+import sys
 
 
 def my_weekdatescalendar(cal, date):

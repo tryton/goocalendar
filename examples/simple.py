@@ -2,8 +2,10 @@
 # this repository contains the full copyright notices and license terms.
 
 import datetime
-from goocalendar import Calendar, Event, EventStore
+
 from gi.repository import Gdk, Gtk
+
+from goocalendar import Calendar, Event, EventStore
 
 
 def on_event_pressed(calendar, event, event_store):
