@@ -79,7 +79,8 @@ class Calendar(GooCanvas.Canvas):
         self.view = view
         self.selected_date = datetime.date.today()
         self.time_format = time_format
-        self.set_bounds(0, 0, 200, 200)
+        self.min_width = self.min_height = 200
+        self.set_bounds(0, 0, self.min_width, self.min_height)
         self.set_can_focus(True)
         self.set_events(
             Gdk.EventMask.EXPOSURE_MASK
@@ -115,6 +116,15 @@ class Calendar(GooCanvas.Canvas):
 
     def do_get_property(self, prop):
         return self.__props[prop.name]
+
+    def do_get_request_mode(self):
+        return Gtk.SizeRequestMode.CONSTANT_SIZE
+
+    def do_get_preferred_height(self):
+        return self.min_height, int(self.min_height * 1.5)
+
+    def do_get_preferred_width(self):
+        return self.min_width, int(self.min_width * 1.5)
 
     @property
     def font_size(self):
@@ -238,6 +248,7 @@ class Calendar(GooCanvas.Canvas):
     def update(self):
         if not self._realized:
             return
+        min_size = (self.min_width, self.min_height)
         self.draw_background()
         if self.view == "month":
             self.draw_month()
@@ -246,6 +257,8 @@ class Calendar(GooCanvas.Canvas):
         elif self.view == "day":
             self.draw_day()
         self.draw_events()
+        if min_size != (self.min_width, self.min_height):
+            self.queue_resize()
 
     def draw_background(self):
         x, y, w, h = self.get_bounds()
@@ -266,10 +279,6 @@ class Calendar(GooCanvas.Canvas):
         day_width_max = (w - timeline_w)
         self._day_width = max(day_width_min, day_width_max)
         self._day_height = h
-        width, height = self.get_size_request()
-        new_width = int(timeline_w + self._day_width)
-        if (width != new_width and day_width_min >= day_width_max):
-            self.set_size_request(new_width, height)  # Minimum widget size
 
         # Redraw all days.
         cal = calendar.Calendar(self.firstweekday)
@@ -304,6 +313,9 @@ class Calendar(GooCanvas.Canvas):
                 'visibility', GooCanvas.CanvasItemVisibility.VISIBLE)
             box.update()
 
+        self.min_width = int(timeline_w + day_width_min)
+        self.min_height = int((24 + 1) * self._timeline.min_line_height)
+
     def draw_week(self):
         """
         Draws the currently selected week.
@@ -316,10 +328,6 @@ class Calendar(GooCanvas.Canvas):
         day_width_max = (w - timeline_w) / 7
         self._day_width = max(day_width_min, day_width_max)
         self._day_height = h
-        width, height = self.get_size_request()
-        new_width = int(timeline_w + 7 * self._day_width)
-        if (width != new_width and day_width_min >= day_width_max):
-            self.set_size_request(new_width, height)  # Minimum widget size
 
         # Redraw all days.
         cal = calendar.Calendar(self.firstweekday)
@@ -367,6 +375,9 @@ class Calendar(GooCanvas.Canvas):
                 if selected:
                     self._selected_day = box
                     self._line_height = self._selected_day.line_height
+
+        self.min_width = int(timeline_w + 7 * day_width_min)
+        self.min_height = int((24 + 1) * self._timeline.min_line_height)
 
     def draw_month(self):
         """
@@ -432,12 +443,8 @@ class Calendar(GooCanvas.Canvas):
 
             y_pos += self._day_height
 
-        width, height = self.get_size_request()
-        new_width = int(7 * self._day_width)
-        new_height = int(14 * box.line_height)
-        if ((width != new_width and self._day_width == day_width_min)
-                or new_height != height):
-            self.set_size_request(new_width, new_height)
+        self.min_width = int(7 * day_width_min)
+        self.min_height = int((6 * 2 + 1) * self._timeline.min_line_height)
 
     def _get_day_item(self, find_date):
         cal = calendar.Calendar(self.firstweekday)
@@ -632,13 +639,10 @@ class Calendar(GooCanvas.Canvas):
         self._timeline.bg_color = self.props.border_color
         self._timeline.text_color = self.props.text_color
         self._timeline.update()
-        width, height = self.get_size_request()
         min_line_height = self._timeline.min_line_height
         line_height = self._timeline.line_height
         self.minute_height = line_height / 60.0
-        new_height = int(max_y + 24 * min_line_height)
-        if (height != new_height):
-            self.set_size_request(width, new_height)
+        self.min_height = int(max_y + 24 * min_line_height)
 
         # Draw non-all-day events.
         for date in dates:

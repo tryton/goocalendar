@@ -91,8 +91,12 @@ event = Event('Four-day Event',
 event_store.add(event)
 
 calendar.select(datetime.date(2007, 10, 8))
-window.add(calendar)
-window.set_size_request(400, 400)
+viewport = Gtk.Viewport()
+viewport.add(calendar)
+scroll = Gtk.ScrolledWindow()
+scroll.add(viewport)
+window.add(scroll)
+window.set_default_size(400, 400)
 window.show_all()
 
 window.connect('delete-event', Gtk.main_quit)
