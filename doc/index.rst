@@ -416,7 +416,7 @@ Instance attributes:
 .. attribute:: editable
 
     Boolean determining if the event can be modified.
-    Default value is `True`.
+    Default value is ``True``.
 
 .. attribute:: multidays
 
@@ -441,11 +441,3 @@ Example usage::
    ...     datetime.datetime(2012, 8, 21, 17),
    ...     bg_color='lightgreen')
    >>> event_store.add(event)
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
