@@ -31,7 +31,7 @@ setup(name='GooCalendar',
     download_url='https://downloads.tryton.org/goocalendar/',
     project_urls={
         "Bug Tracker": 'https://goocalendar.tryton.org/',
-        "Documentation": 'https://goocalendar.readthedocs.org/',
+        "Documentation": 'https://docs.tryton.org/goocalendar',
         "Forum": 'https://discuss.tryton.org/tags/goocalendar',
         "Source Code": 'https://code.tryton.org/goocalendar',
         },
