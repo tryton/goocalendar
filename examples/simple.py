@@ -3,9 +3,14 @@
 
 import datetime
 
-from gi.repository import Gdk, Gtk
+import gi
 
-from goocalendar import Calendar, Event, EventStore
+gi.require_version('Gtk', '3.0')
+gi.require_version('Gdk', '3.0')
+
+from gi.repository import Gdk, Gtk  # noqa: E402
+
+from goocalendar import Calendar, Event, EventStore  # noqa: E402
 
 
 def on_event_pressed(calendar, event, event_store):
