@@ -15,6 +15,7 @@ check-doc:
   extends: .check
   image: sphinxdoc/sphinx
   before_script:
+    - pip install setuptools
     - pip install -r doc/requirements-doc.txt
     - pip install sphinx-lint rstcheck[sphinx]
   script:
