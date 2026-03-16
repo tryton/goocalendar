@@ -1,0 +1,40 @@
+[build-system]
+requires = ['hatchling >= 1', 'hatch-tryton']
+build-backend = 'hatchling.build'
+
+[project]
+name = 'GooCalendar'
+dynamic = ['version', 'authors']
+requires-python = '>=3.4'
+maintainers = [
+    {name = "Tryton", email = "foundation@tryton.org"},
+    ]
+description = "A calendar widget for GTK using PyGoocanvas"
+readme = 'README.rst'
+license = 'GPL-2.0-or-later'
+license-files = ['LICENSE', 'COPYRIGHT']
+keywords = ["calendar", "GTK", "GooCanvas", "widget"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: X11 Applications :: GTK",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Widget Sets",
+    ]
+
+[project.urls]
+homepage = "https://www.tryton.org/"
+documentation = "https://docs.tryton.org/goocalendar"
+changelog = "https://code.tryton.org/goocalendar/-/blob/branch/default/CHANGELOG"
+forum = "https://discuss.tryton.org/tags/goocalendar"
+issues = "https://bugs.tryton.org/goocalendar"
+repository = "https://code.tryton.org/goocalendar"
+
+[tool.hatch.version]
+path = 'goocalendar/__init__.py'
+
+[tool.hatch.build]
+packages = ['goocalendar']
+
+[tool.hatch.metadata.hooks.tryton]
+copyright = 'COPYRIGHT'

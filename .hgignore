@@ -1,0 +1,7 @@
+syntax: glob
+*.py[cdo]
+*.egg-info
+dist/
+build/
+.tox/
+.coverage
