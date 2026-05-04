@@ -3,17 +3,21 @@
 * Upgrade to pyproject
 
 Version 0.8.0 - 2023-03-18
+--------------------------
 * Manage preferred size
 
 Version 0.7.2 - 2021-03-28
+--------------------------
 * Add support GooCanvas 3.0
 * Add selected text color property
 * Remove lighter background on event
 
 Version 0.7.1 - 2020-04-18
+--------------------------
 * Bug fixes (see mercurial logs for details)
 
 Version 0.7.0 - 2020-02-23
+--------------------------
 * Bug fixes (see mercurial logs for details)
 * Use Gtk default font as font by default
 * Manage non editable event
@@ -21,22 +25,28 @@ Version 0.7.0 - 2020-02-23
 * Replace font-desc properties by font
 
 Version 0.6 - 2019-10-05
+------------------------
 * Add support for Python 3.7
 
 Version 0.5 - 2019-03-22
+------------------------
 * Use GTK+ 3
 * Remove support for Python 2
 * Add single day view
 
 Version 0.4 - 2018-06-26
+------------------------
 * Add support for Python 3
 
 Version 0.3 - 2016-11-28
+------------------------
 * Add support for goocanvas >= 2.0
 * Add colors and font-desc properties to Calendar
 
 Version 0.2 - 2015-02-11
+------------------------
 * Bug fixes (see mercurial logs for details)
 
 Version 0.1 - 2013-02-18
+------------------------
 * Initial release

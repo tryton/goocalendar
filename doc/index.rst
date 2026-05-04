@@ -1,3 +1,4 @@
+======================================
 :mod:`goocalendar` --- Calendar widget
 ======================================
 
@@ -441,3 +442,10 @@ Example usage::
    ...     datetime.datetime(2012, 8, 21, 17),
    ...     bg_color='lightgreen')
    >>> event_store.add(event)
+
+.. _releases-index:
+
+Release notes
+=============
+
+.. include:: ../CHANGELOG
