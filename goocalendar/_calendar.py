@@ -2,14 +2,13 @@
 # this repository contains the full copyright notices and license terms.
 import calendar
 import datetime
-import math
 
-from gi.repository import Gdk, GObject, GooCanvas, Gtk, Pango
+from gi.repository import Gdk, GObject, Gtk, Pango, PangoCairo
 
 from . import util
 
 
-class Calendar(GooCanvas.Canvas):
+class Calendar(Gtk.DrawingArea):
     AVAILABLE_VIEWS = ["month", "week", "day"]
     MIN_PER_LEVEL = 15  # Number of minutes per graduation for drag and drop
 
@@ -75,14 +74,16 @@ class Calendar(GooCanvas.Canvas):
         self._day_width = 0
         self._day_height = 0
         self._event_items = []
+        self._tooltip_text = None
+        self._tooltip_x = None
+        self._tooltip_y = None
         assert view in self.AVAILABLE_VIEWS
         self.view = view
         self.selected_date = datetime.date.today()
         self.time_format = time_format
         self.min_width = self.min_height = 200
-        self.set_bounds(0, 0, self.min_width, self.min_height)
         self.set_can_focus(True)
-        self.set_events(
+        self.add_events(
             Gdk.EventMask.EXPOSURE_MASK
             | Gdk.EventMask.BUTTON_PRESS_MASK
             | Gdk.EventMask.BUTTON_RELEASE_MASK
@@ -93,23 +94,22 @@ class Calendar(GooCanvas.Canvas):
             | Gdk.EventMask.ENTER_NOTIFY_MASK
             | Gdk.EventMask.LEAVE_NOTIFY_MASK
             | Gdk.EventMask.FOCUS_CHANGE_MASK)
-        self.connect_after('realize', self.on_realize)
+        self.connect('realize', self.on_realize)
         self.connect('size-allocate', self.on_size_allocate)
         self.connect('key-press-event', self.on_key_press_event)
+        self.connect('draw', self.on_draw)
+        self.connect('button-press-event', self.on_button_press_event)
+        self.connect('button-release-event', self.on_button_release_event)
+        self.connect('motion-notify-event', self.on_motion_notify_event)
+        self.connect('query-tooltip', self.on_query_tooltip)
 
-        # Initialize background, timeline and days and add them to canvas
-        root = self.get_root_item()
-        self._bg_rect = GooCanvas.CanvasRect(parent=root, x=0, y=0,
-            stroke_color='white', fill_color='white')
-        self._timeline = TimelineItem(self, time_format=self.time_format)
-        root.add_child(self._timeline, -1)
+        # Initialize day and event data structures
         self.days = []
         while len(self.days) < 42:  # 6 rows of 7 days
             box = DayItem(self)
-            root.add_child(box, -1)
-            box.connect('button_press_event',
-                self.on_day_item_button_press_event)
             self.days.append(box)
+
+        self._timeline = TimelineItem(self, time_format=self.time_format)
 
     def do_set_property(self, prop, value):
         self.__props[prop.name] = value
@@ -182,11 +182,10 @@ class Calendar(GooCanvas.Canvas):
         new_day.full_border = True
 
         # Redraw.
-        old_day.update()
-        new_day.update()
         self._selected_day = new_day
         if old_day != new_day:
             self.emit('day-selected', self.selected_date)
+        self.queue_draw()
 
     def previous_page(self):
         cal = calendar.Calendar(self.firstweekday)
@@ -235,60 +234,57 @@ class Calendar(GooCanvas.Canvas):
 
     def on_realize(self, *args):
         self._realized = True
-        self.grab_focus(self.get_root_item())
+        self.grab_focus()
         self.on_size_allocate(*args)
 
     def on_size_allocate(self, *args):
         alloc = self.get_allocation()
         if not self._realized or alloc.width < 10 or alloc.height < 10:
             return
-        self.set_bounds(0, 0, alloc.width, alloc.height)
         self.update()
 
     def update(self):
         if not self._realized:
             return
         min_size = (self.min_width, self.min_height)
-        self.draw_background()
-        if self.view == "month":
-            self.draw_month()
-        elif self.view == "week":
-            self.draw_week()
-        elif self.view == "day":
-            self.draw_day()
-        self.draw_events()
+        self._prepare_layout()
         if min_size != (self.min_width, self.min_height):
             self.queue_resize()
+        self.queue_draw()
 
-    def draw_background(self):
-        x, y, w, h = self.get_bounds()
-        self._bg_rect.set_property('width', w)
-        self._bg_rect.set_property('height', h)
+    def _prepare_layout(self):
+        """Prepare the layout data for drawing."""
+        alloc = self.get_allocation()
+        w, h = alloc.width, alloc.height
 
-    def draw_day(self):
+        if self.view == "month":
+            self._prepare_month_layout(w, h)
+        elif self.view == "week":
+            self._prepare_week_layout(w, h)
+        elif self.view == "day":
+            self._prepare_day_layout(w, h)
+        self._prepare_events()
+
+    def _prepare_day_layout(self, w, h):
         """
-        Draws the currently selected day.
+        Prepares the layout for the currently selected day.
         """
-        x, y, w, h = self.get_bounds()
-        timeline_w = self._timeline.width
+        timeline_w = self._timeline.get_width(self)
         dayno = self.selected_date.weekday()
         day_name = calendar.day_name[dayno]
-        # Sum the needed space for the date before the day_name
         caption_size = len(day_name) + 3
         day_width_min = caption_size * self.font_size / Pango.SCALE
         day_width_max = (w - timeline_w)
         self._day_width = max(day_width_min, day_width_max)
         self._day_height = h
 
-        # Redraw all days.
+        # Prepare all days.
         cal = calendar.Calendar(self.firstweekday)
         weeks = util.my_monthdatescalendar(cal, self.selected_date)
         for weekno, week in enumerate(weeks):
-            # Hide all days that are not part of the current day
             for i, date in enumerate(week):
                 box = self.days[weekno * 7 + i]
-                box.set_property(
-                    'visibility', GooCanvas.CanvasItemVisibility.INVISIBLE)
+                box.visible = False
             if self.selected_date not in week:
                 continue
 
@@ -297,7 +293,6 @@ class Calendar(GooCanvas.Canvas):
             else:
                 the_body_color = self.props.body_color
 
-            # Draw.
             box = self.days[weekno * 7 + dayno]
             box.x = timeline_w
             box.y = 0
@@ -309,19 +304,17 @@ class Calendar(GooCanvas.Canvas):
             box.border_color = self.props.selected_border_color
             box.body_color = the_body_color
             box.title_text_color = self.props.selected_text_color
-            box.set_property(
-                'visibility', GooCanvas.CanvasItemVisibility.VISIBLE)
-            box.update()
+            box.visible = True
 
         self.min_width = int(timeline_w + day_width_min)
-        self.min_height = int((24 + 1) * self._timeline.min_line_height)
+        self.min_height = int(
+            (24 + 1) * self._timeline.get_min_line_height(self))
 
-    def draw_week(self):
+    def _prepare_week_layout(self, w, h):
         """
-        Draws the currently selected week.
+        Prepares the layout for the currently selected week.
         """
-        x, y, w, h = self.get_bounds()
-        timeline_w = self._timeline.width
+        timeline_w = self._timeline.get_width(self)
         caption_size = max(len(day_name) for day_name in calendar.day_name)
         caption_size += 3  # The needed space for the date before the day_name
         day_width_min = caption_size * self.font_size / Pango.SCALE
@@ -329,21 +322,16 @@ class Calendar(GooCanvas.Canvas):
         self._day_width = max(day_width_min, day_width_max)
         self._day_height = h
 
-        # Redraw all days.
         cal = calendar.Calendar(self.firstweekday)
         weeks = util.my_monthdatescalendar(cal, self.selected_date)
         for weekno, week in enumerate(weeks):
-            # Hide all days that are not part of the current week.
             if self.selected_date not in week:
                 for dayno, date in enumerate(week):
                     box = self.days[weekno * 7 + dayno]
-                    box.set_property(
-                        'visibility', GooCanvas.CanvasItemVisibility.INVISIBLE)
+                    box.visible = False
                 continue
 
-            # Draw the days that are part of the current week.
             for dayno, current_date in enumerate(week):
-                # Highlight the day according to it's selection.
                 selected = current_date == self.selected_date
                 if selected:
                     the_border_color = self.props.selected_border_color
@@ -356,7 +344,6 @@ class Calendar(GooCanvas.Canvas):
                 else:
                     the_body_color = self.props.body_color
 
-                # Draw.
                 box = self.days[weekno * 7 + dayno]
                 box.x = self._day_width * dayno + timeline_w
                 box.y = 0
@@ -368,22 +355,19 @@ class Calendar(GooCanvas.Canvas):
                 box.border_color = the_border_color
                 box.body_color = the_body_color
                 box.title_text_color = the_text_color
-                box.set_property(
-                    'visibility', GooCanvas.CanvasItemVisibility.VISIBLE)
-                box.update()
+                box.visible = True
 
                 if selected:
                     self._selected_day = box
-                    self._line_height = self._selected_day.line_height
 
         self.min_width = int(timeline_w + 7 * day_width_min)
-        self.min_height = int((24 + 1) * self._timeline.min_line_height)
+        self.min_height = int(
+            (24 + 1) * self._timeline.get_min_line_height(self))
 
-    def draw_month(self):
+    def _prepare_month_layout(self, w, h):
         """
-        Draws the currently selected month.
+        Prepares the layout for the currently selected month.
         """
-        x1, y1, w, h = self.get_bounds()
         caption_size = max(len(day_name) for day_name in calendar.day_name)
         caption_size += 3  # The needed space for the date before the day_name
         day_width_min = caption_size * self.font_size / Pango.SCALE
@@ -391,19 +375,11 @@ class Calendar(GooCanvas.Canvas):
         self._day_width = max(day_width_min, day_width_max)
         self._day_height = h / 6
 
-        # Hide the timeline.
-        if self._timeline is not None:
-            self._timeline.set_property(
-                'visibility', GooCanvas.CanvasItemVisibility.INVISIBLE)
-
-        # Draw the grid.
         y_pos = 0
         cal = calendar.Calendar(self.firstweekday)
         weeks = util.my_monthdatescalendar(cal, self.selected_date)
         for weekno, week in enumerate(weeks):
             for dayno, date in enumerate(week):
-                # The color depends on whether each day is part of the
-                # current month.
                 if (not util.same_month(date, self.selected_date)):
                     the_border_color = self.props.inactive_border_color
                     the_text_color = self.props.inactive_text_color
@@ -411,7 +387,6 @@ class Calendar(GooCanvas.Canvas):
                     the_border_color = self.props.border_color
                     the_text_color = self.props.text_color
 
-                # Highlight the day according to it's selection.
                 selected = date == self.selected_date
                 if selected:
                     the_border_color = self.props.selected_border_color
@@ -421,7 +396,6 @@ class Calendar(GooCanvas.Canvas):
                 else:
                     the_body_color = self.props.body_color
 
-                # Draw a box for the day.
                 box = self.days[weekno * 7 + dayno]
                 box.x = self._day_width * dayno
                 box.y = y_pos
@@ -433,18 +407,16 @@ class Calendar(GooCanvas.Canvas):
                 box.body_color = the_body_color
                 box.title_text_color = the_text_color
                 box.type = 'month'
-                box.set_property(
-                    'visibility', GooCanvas.CanvasItemVisibility.VISIBLE)
-                box.update()
+                box.visible = True
 
                 if selected:
                     self._selected_day = box
-                    self._line_height = self._selected_day.line_height
 
             y_pos += self._day_height
 
         self.min_width = int(7 * day_width_min)
-        self.min_height = int((6 * 2 + 1) * self._timeline.min_line_height)
+        self.min_height = int(
+            (6 * 2 + 1) * self._timeline.get_min_line_height(self))
 
     def _get_day_item(self, find_date):
         cal = calendar.Calendar(self.firstweekday)
@@ -492,16 +464,18 @@ class Calendar(GooCanvas.Canvas):
                 return line
         return None
 
-    def draw_events(self):
-        _, _, bound_width, _ = self.get_bounds()
+    def _prepare_events(self):
+        alloc = self.get_allocation()
+        bound_width = alloc.width
+
         # Clear previous events.
-        for item in self._event_items:
-            item.remove()
         self._event_items = []
         for day in self.days:
             day.lines.clear()
             day.show_indic = False
-            day.update()
+            # Compute line height for each visible day
+            if day.visible:
+                day.compute_line_height(self)
 
         if not self._event_store:
             return
@@ -532,7 +506,6 @@ class Calendar(GooCanvas.Canvas):
         non_all_day_events = []
         for event in events:
             event.event_items = []
-            # Handle non-all-day events differently in week and day modes.
             if (self.view in {"week", "day"} and not event.all_day
                     and not event.multidays):
                 non_all_day_events.append(event)
@@ -547,7 +520,6 @@ class Calendar(GooCanvas.Canvas):
             if free_line is None:
                 for day in days:
                     day.show_indic = True
-                    day.update()
                 continue
 
             max_line_height = max(x.line_height for x in days)
@@ -580,17 +552,10 @@ class Calendar(GooCanvas.Canvas):
                 if len(event.event_items):
                     event_item.no_caption = True
                 event.event_items.append(event_item)
-                event_item.connect('button_press_event',
-                    self.on_event_item_button_press_event)
-                event_item.connect('button_release_event',
-                    self.on_event_item_button_release)
-                event_item.connect('motion_notify_event',
-                    self.on_event_item_motion_notified)
                 self._event_items.append(event_item)
-                self.get_root_item().add_child(event_item, -1)
                 if self.view == "day":
-                    x_start = self._timeline.width
-                    width = bound_width - self._timeline.width
+                    x_start = self._timeline.get_width(self)
+                    width = bound_width - self._timeline.get_width(self)
                 else:
                     x_start = day.x
                     width = (day.width + 2) * len(week)
@@ -619,32 +584,33 @@ class Calendar(GooCanvas.Canvas):
                     event_item.x += 2
                     event_item.width -= 6
                     event_item.type = 'leftright'
-                event_item.update()
+
         # Add the day title
         if self._selected_day:
             max_y += self._selected_day.line_height
+            self._line_height = self._selected_day.line_height
 
         if self.view == "month":
             return
 
-        # Redraw the timeline.
-        self._timeline.set_property(
-            'visibility', GooCanvas.CanvasItemVisibility.VISIBLE)
-        x, y, w, h = self.get_bounds()
+        # Prepare the timeline.
+        alloc = self.get_allocation()
+        w, h = alloc.width, alloc.height
         max_y += (h - max_y) % 24
-        self._timeline.x = x
+        self._timeline.x = 0
         self._timeline.y = max_y
         self._timeline.height = h - max_y
         self._timeline.line_color = self.props.body_color
         self._timeline.bg_color = self.props.border_color
         self._timeline.text_color = self.props.text_color
-        self._timeline.update()
-        min_line_height = self._timeline.min_line_height
-        line_height = self._timeline.line_height
+        self._timeline.visible = True
+
+        min_line_height = self._timeline.get_min_line_height(self)
+        line_height = self._timeline.get_line_height(self)
         self.minute_height = line_height / 60.0
         self.min_height = int(max_y + 24 * min_line_height)
 
-        # Draw non-all-day events.
+        # Prepare non-all-day events.
         for date in dates:
             date_start = datetime.datetime.combine(date, datetime.time())
             date_end = (datetime.datetime.combine(date_start, datetime.time())
@@ -654,9 +620,7 @@ class Calendar(GooCanvas.Canvas):
                 date_start, date_end)
             day_events.sort()
             columns = []
-            column = 0
 
-            # Sort events into columns.
             remaining_events = day_events[:]
             while len(remaining_events) > 0:
                 columns.append([remaining_events[0]])
@@ -668,17 +632,14 @@ class Calendar(GooCanvas.Canvas):
                 for event in columns[-1]:
                     remaining_events.remove(event)
 
-            # Walk through all columns.
             for columnno, column in enumerate(columns):
                 for event in column:
-                    # Crop the event to the current day.
                     event1_start = max(event.start, date_start)
                     event1_end = min(event.end, date_end)
 
                     parallel = util.count_parallel_events(day_events,
                         event1_start, event1_end)
 
-                    # Draw.
                     top_offset = event1_start - date_start
                     bottom_offset = event1_end - event1_start
                     top_offset_mins = top_offset.seconds / 60
@@ -690,19 +651,13 @@ class Calendar(GooCanvas.Canvas):
                     if event.event_items:
                         event_item.no_caption = True
                     event.event_items.append(event_item)
-                    event_item.connect('button_press_event',
-                        self.on_event_item_button_press_event)
-                    event_item.connect('button_release_event',
-                        self.on_event_item_button_release)
-                    event_item.connect('motion_notify_event',
-                        self.on_event_item_motion_notified)
                     self._event_items.append(event_item)
-                    self.get_root_item().add_child(event_item, -1)
                     y_off1 = top_offset_mins * self.minute_height
                     y_off2 = bottom_offset_mins * self.minute_height
                     if self.view == "day":
-                        x_start = self._timeline.width
-                        column_width = (w - self._timeline.width) / parallel
+                        x_start = self._timeline.get_width(self)
+                        column_width = (
+                            (w - self._timeline.get_width(self)) / parallel)
                     else:
                         column_width = day.width / parallel
                         x_start = day.x
@@ -712,7 +667,8 @@ class Calendar(GooCanvas.Canvas):
                     event_item.width = column_width - 4
                     if columnno != (parallel - 1):
                         event_item.width += column_width / 1.2
-                    event_item.height = max(event_item.line_height, y_off2)
+                    event_item.height = max(
+                        event_item.get_line_height(self), y_off2)
                     if event.start < event1_start and event.end > event1_end:
                         event_item.type = 'mid'
                     elif event.start < event1_start:
@@ -721,7 +677,31 @@ class Calendar(GooCanvas.Canvas):
                         event_item.type = 'bottom'
                     else:
                         event_item.type = 'topbottom'
-                    event_item.update()
+
+    def on_draw(self, widget, cr):
+        """Handle the draw signal - draw the entire calendar."""
+        alloc = self.get_allocation()
+        w, h = alloc.width, alloc.height
+
+        # Draw background
+        cr.set_source_rgb(1, 1, 1)
+        cr.rectangle(0, 0, w, h)
+        cr.fill()
+
+        # Draw all visible day items
+        for day in self.days:
+            if day.visible:
+                day.draw(cr, self)
+
+        # Draw timeline for week/day views
+        if self.view in ("week", "day") and self._timeline.visible:
+            self._timeline.draw(cr, self)
+
+        # Draw all event items
+        for event_item in self._event_items:
+            event_item.draw(cr, self)
+
+        return False
 
     def on_event_store_event_removed(self, store, event):
         self.update()
@@ -743,8 +723,63 @@ class Calendar(GooCanvas.Canvas):
         elif event.keyval == Gdk.KEY_Right:
             self.select(date + datetime.timedelta(1))
 
-    @util.left_click
-    def on_day_item_button_press_event(self, day, widget2, event):
+    def on_button_press_event(self, widget, event):
+        if event.button != 1:
+            return False
+
+        x, y = event.x, event.y
+
+        # Check if an event item was clicked
+        for event_item in reversed(self._event_items):
+            if event_item.contains_point(x, y):
+                self._handle_event_item_press(event_item, event)
+                return True
+
+        # Check if a day was clicked
+        for day in self.days:
+            if day.visible and day.contains_point(x, y):
+                self._handle_day_press(day, event)
+                return True
+
+        return False
+
+    def on_button_release_event(self, widget, event):
+        # Find if we're releasing on an event item
+        for event_item in self._event_items:
+            if event_item.contains_point(event.x, event.y):
+                if self._drag_x is not None:
+                    event_item.transparent = False
+                    self._stop_drag_and_drop()
+                    self.update()
+                    self.emit('event-released', event_item.event)
+                    return True
+        if self._drag_x is not None:
+            self._stop_drag_and_drop()
+            self.update()
+        return False
+
+    def on_motion_notify_event(self, widget, event):
+        if self._drag_x is None or self._drag_y is None:
+            return False
+
+        # Find the event item being dragged
+        for event_item in self._event_items:
+            if event_item.transparent:
+                self._handle_event_item_motion(event_item, event)
+                return True
+        return False
+
+    def on_query_tooltip(self, widget, x, y, keyboard_mode, tooltip):
+        # Check event items for tooltips
+        for event_item in reversed(self._event_items):
+            if event_item.contains_point(x, y):
+                tooltip_text = event_item.get_tooltip()
+                if tooltip_text:
+                    tooltip.set_text(tooltip_text)
+                    return True
+        return False
+
+    def _handle_day_press(self, day, event):
         self.emit('day-pressed', day.date)
         self.select(day.date)
 
@@ -776,7 +811,6 @@ class Calendar(GooCanvas.Canvas):
         """
         if self.view == 'day':
             return self.selected_date
-        # Get current week
         cal = calendar.Calendar(self.firstweekday)
         weeks = util.my_monthdatescalendar(cal, self.selected_date)
         if self.view == 'week':
@@ -792,32 +826,28 @@ class Calendar(GooCanvas.Canvas):
                 weekno = int(y / self._day_height)
             cur_week = weeks[weekno]
 
-        # Get Current pointed date
         max_width = 7 * self._day_width
         if x < 0:
             day_no = 0
         elif x > max_width:
             day_no = 6
         else:
-            offset_x = self._timeline.width if self.view == 'week' else 0
+            offset_x = (
+                self._timeline.get_width(self) if self.view == 'week' else 0)
             day_no = int((x - offset_x) / self._day_width)
         return cur_week[day_no]
 
-    @util.left_click
-    def on_event_item_button_press_event(self, event_item, rect, event):
-
+    def _handle_event_item_press(self, event_item, event):
         if event_item.event.editable:
-            # Drag and drop starting coordinates
             self._drag_x = event.x
             self._drag_y = event.y
             self._drag_height = 0
             self._drag_start_date = self.get_cur_pointed_date(event.x, event.y)
             self._drag_date = self._drag_start_date
             self.set_has_tooltip(False)
-            event_item.raise_(None)
             event_item.transparent = True
 
-            event_item.width = self._day_width - 6  # Biggest event width
+            event_item.width = self._day_width - 6
             event_date = event_item.event.start.date()
             daysdelta = self._drag_start_date - event_date
             if self.view == 'week':
@@ -829,24 +859,22 @@ class Calendar(GooCanvas.Canvas):
                     if event_item.event.end:
                         event_item.event.end += daysdelta
                 else:
+                    # Remove other event items for this event
                     for item in event_item.event.event_items:
                         if item != event_item:
-                            item.remove()
                             self._event_items.remove(item)
 
                     event_item.height = 2 * self._line_height
-                    day_no = (int((event.x - self._timeline.width)
+                    day_no = (int((event.x - self._timeline.get_width(self))
                         / self._day_width))
                     day_off = day_no * self._day_width + 2
-                    event_item.x = self._timeline.width + day_off
+                    event_item.x = self._timeline.get_width(self) + day_off
                     if (event_item.no_caption or event.y < event_item.y
                             or event.y > (event_item.y + event_item.height)):
-                        # click was not performed inside the new day item
                         level_height = self.minute_height * self.MIN_PER_LEVEL
                         cur_level = int((event.y - self._timeline.y)
                             / level_height)
                         nb_levels_per_hour = 60 / self.MIN_PER_LEVEL
-                        # click is in the middle
                         cur_level -= nb_levels_per_hour
                         if cur_level < 0:
                             cur_level = 0
@@ -866,7 +894,6 @@ class Calendar(GooCanvas.Canvas):
             elif self.view == 'month':
                 for item in event_item.event.event_items:
                     if item != event_item:
-                        item.remove()
                         self._event_items.remove(item)
                     else:
                         event_item.event.start += daysdelta
@@ -876,27 +903,22 @@ class Calendar(GooCanvas.Canvas):
                         day_no = int(event.x / self._day_width)
                         event_item.y = weekno * self._day_height
                         event_item.y += (
-                            int(self._line_height) + 1)  # padding-top
+                            int(self._line_height) + 1)
                         event_item.x = (
-                            day_no * self._day_width + 2)  # padding-left
+                            day_no * self._day_width + 2)
                         item_height = (
-                            self._line_height + 2)  # 2px between items
+                            self._line_height + 2)
                         while event_item.y < event.y:
                             event_item.y += item_height
                         event_item.y -= item_height
                         event_item.no_caption = False
-            event_item.update()
+            self.queue_draw()
+
         self.emit('event-pressed', event_item.event)
 
         if self._is_double_click(event):
             self._stop_drag_and_drop()
             self.emit('event-activated', event_item.event)
-
-    def on_event_item_button_release(self, event_item, rect, event):
-        event_item.transparent = False
-        self._stop_drag_and_drop()
-        self.draw_events()
-        self.emit('event-released', event_item.event)
 
     def _stop_drag_and_drop(self):
         self._drag_x = None
@@ -906,77 +928,82 @@ class Calendar(GooCanvas.Canvas):
         self._drag_date = None
         self.set_has_tooltip(True)
 
-    def on_event_item_motion_notified(self, event_item, rect, event):
-        if self._drag_x and self._drag_y:
-            # We are currently drag and dropping this event item
-            diff_y = event.y - self._drag_y
-            self._drag_x = event.x
-            self._drag_y = event.y
-            self._drag_height += diff_y
+    def _handle_event_item_motion(self, event_item, event):
+        diff_y = event.y - self._drag_y
+        self._drag_x = event.x
+        self._drag_y = event.y
+        self._drag_height += diff_y
 
-            cur_pointed_date = self.get_cur_pointed_date(event.x, event.y)
-            daysdelta = cur_pointed_date - self._drag_date
-            if self.view == 'month':
-                if cur_pointed_date != self._drag_date:
-                    event_item.event.start += daysdelta
-                    if event_item.event.end:
-                        event_item.event.end += daysdelta
-                    nb_lines = int(round(float(daysdelta.days) / 7))
-                    nb_columns = daysdelta.days - nb_lines * 7
-                    event_item.x += nb_columns * self._day_width
-                    self._drag_date = cur_pointed_date
-                event_item.y += diff_y
-                event_item.update()
-                return
-
-            # Handle horizontal translation
+        cur_pointed_date = self.get_cur_pointed_date(event.x, event.y)
+        daysdelta = cur_pointed_date - self._drag_date
+        if self.view == 'month':
             if cur_pointed_date != self._drag_date:
-                self._drag_date = cur_pointed_date
                 event_item.event.start += daysdelta
                 if event_item.event.end:
                     event_item.event.end += daysdelta
-                event_item.x += daysdelta.days * self._day_width
+                nb_lines = int(round(float(daysdelta.days) / 7))
+                nb_columns = daysdelta.days - nb_lines * 7
+                event_item.x += nb_columns * self._day_width
+                self._drag_date = cur_pointed_date
+            event_item.y += diff_y
+            self.queue_draw()
+            return
 
-            if event_item.event.multidays or event_item.event.all_day:
-                event_item.update()
-                return
-
-            # Compute vertical translation
-            diff_minutes = int(round(self._drag_height / self.minute_height))
-            diff_time = datetime.timedelta(minutes=diff_minutes)
-            old_start = event_item.event.start
-            new_start = old_start + diff_time
-            next_level = util.next_level(old_start, self.MIN_PER_LEVEL)
-            prev_level = util.prev_level(old_start, self.MIN_PER_LEVEL)
-            if diff_time >= datetime.timedelta(0) and new_start >= next_level:
-                new_start = util.prev_level(new_start, self.MIN_PER_LEVEL)
-            elif diff_time < datetime.timedelta(0) and new_start <= prev_level:
-                new_start = util.next_level(new_start, self.MIN_PER_LEVEL)
-            else:
-                # We stay at the same level
-                event_item.update()
-                return
-
-            # Apply vertical translation
-            midnight = datetime.time()
-            old_start_midnight = datetime.datetime.combine(old_start, midnight)
-            onedaydelta = datetime.timedelta(days=1)
-            next_day_midnight = old_start_midnight + onedaydelta
-            if new_start.day < old_start.day:
-                new_start = old_start_midnight
-            elif new_start >= next_day_midnight:
-                seconds_per_level = 60 * self.MIN_PER_LEVEL
-                level_delta = datetime.timedelta(seconds=seconds_per_level)
-                last_level = next_day_midnight - level_delta
-                new_start = last_level
-            event_item.event.start = new_start
+        # Handle horizontal translation
+        if cur_pointed_date != self._drag_date:
+            self._drag_date = cur_pointed_date
+            event_item.event.start += daysdelta
             if event_item.event.end:
-                timedelta = new_start - old_start
-                event_item.event.end += timedelta
-            pxdelta = (timedelta.total_seconds() / 60 * self.minute_height)
-            event_item.y += pxdelta
-            event_item.update()
-            self._drag_height -= pxdelta
+                event_item.event.end += daysdelta
+            event_item.x += daysdelta.days * self._day_width
+
+        if event_item.event.multidays or event_item.event.all_day:
+            self.queue_draw()
+            return
+
+        # Compute vertical translation
+        diff_minutes = int(round(self._drag_height / self.minute_height))
+        diff_time = datetime.timedelta(minutes=diff_minutes)
+        old_start = event_item.event.start
+        new_start = old_start + diff_time
+        next_level = util.next_level(old_start, self.MIN_PER_LEVEL)
+        prev_level = util.prev_level(old_start, self.MIN_PER_LEVEL)
+        if diff_time >= datetime.timedelta(0) and new_start >= next_level:
+            new_start = util.prev_level(new_start, self.MIN_PER_LEVEL)
+        elif diff_time < datetime.timedelta(0) and new_start <= prev_level:
+            new_start = util.next_level(new_start, self.MIN_PER_LEVEL)
+        else:
+            self.queue_draw()
+            return
+
+        # Apply vertical translation
+        midnight = datetime.time()
+        old_start_midnight = datetime.datetime.combine(old_start, midnight)
+        onedaydelta = datetime.timedelta(days=1)
+        next_day_midnight = old_start_midnight + onedaydelta
+        if new_start.day < old_start.day:
+            new_start = old_start_midnight
+        elif new_start >= next_day_midnight:
+            seconds_per_level = 60 * self.MIN_PER_LEVEL
+            level_delta = datetime.timedelta(seconds=seconds_per_level)
+            last_level = next_day_midnight - level_delta
+            new_start = last_level
+        event_item.event.start = new_start
+        if event_item.event.end:
+            timedelta = new_start - old_start
+            event_item.event.end += timedelta
+        pxdelta = (timedelta.total_seconds() / 60 * self.minute_height)
+        event_item.y += pxdelta
+        self.queue_draw()
+        self._drag_height -= pxdelta
+
+    def get_root_item(self):
+        # Compatibility method for GooCanvas API
+        return self
+
+    def grab_focus(self, item=None):
+        # Compatibility method for GooCanvas API
+        super().grab_focus()
 
 
 GObject.signal_new('event-pressed',
@@ -1021,14 +1048,20 @@ GObject.signal_new('page-changed',
     (GObject.TYPE_PYOBJECT,))
 
 
-class DayItem(GooCanvas.CanvasGroup):
+def parse_color(color_string):
+    """Parse a color string to RGB values (0-1 range)."""
+    color = Gdk.RGBA()
+    if color.parse(color_string):
+        return color.red, color.green, color.blue, color.alpha
+    return 0, 0, 0, 1
+
+
+class DayItem:
     """
-    A canvas item representing a day.
+    A data structure representing a day.
     """
 
     def __init__(self, cal, **kwargs):
-        super(DayItem, self).__init__()
-
         self._cal = cal
         self.x = kwargs.get('x', 0)
         self.y = kwargs.get('y', 0)
@@ -1044,41 +1077,75 @@ class DayItem(GooCanvas.CanvasGroup):
         self.n_lines = 0
         self.title_text_color = ""
         self.line_height = 0
+        self.visible = True
 
-        # Create canvas items.
-        self.border = GooCanvas.CanvasRect(parent=self)
-        self.text = GooCanvas.CanvasText(parent=self)
-        self.box = GooCanvas.CanvasRect(parent=self)
-        self.indic = GooCanvas.CanvasRect(parent=self)
+    def contains_point(self, px, py):
+        """Check if a point is within this day item."""
+        return (self.x <= px <= self.x + self.width
+            and self.y <= py <= self.y + self.height)
 
-    def update(self):
+    def compute_line_height(self, cal):
+        """Compute the line height based on font."""
         if not self.date:
             return
 
         week_day = self.date.weekday()
         day_name = calendar.day_name[week_day]
         caption = '%s %s' % (self.date.day, day_name)
-        self.text.set_property('font', self._cal.props.font)
-        self.text.set_property('text', caption)
-        logical_height = self.text.get_natural_extents()[1].height
-        line_height = int(math.ceil(float(logical_height) / Pango.SCALE))
+
+        # Create a Pango layout to measure text
+        pango_context = cal.get_pango_context()
+        layout = Pango.Layout(pango_context)
+        layout.set_font_description(
+            Pango.FontDescription.from_string(cal.props.font))
+        layout.set_text(caption, -1)
+        _, logical_rect = layout.get_pixel_extents()
+        self.line_height = logical_rect.height
+
+        # Compute number of lines that fit
+        if self.full_border:
+            box_height = max(self.height - self.line_height - 3, 0)
+        else:
+            box_height = max(self.height - self.line_height, 0)
+        line_height_and_margin = self.line_height + 2
+        self.n_lines = (
+            int(box_height / line_height_and_margin)
+            if line_height_and_margin > 0
+            else 0)
+
+    def draw(self, cr, cal):
+        """Draw this day item using Cairo."""
+        if not self.date:
+            return
+
+        week_day = self.date.weekday()
+        day_name = calendar.day_name[week_day]
+        caption = '%s %s' % (self.date.day, day_name)
+
+        # Create a Pango layout
+        pango_context = cal.get_pango_context()
+        layout = Pango.Layout(pango_context)
+        layout.set_font_description(
+            Pango.FontDescription.from_string(cal.props.font))
+        layout.set_text(caption, -1)
+        _, logical_rect = layout.get_pixel_extents()
+        line_height = logical_rect.height
         self.line_height = line_height
 
-        # Draw the border.
-        self.border.set_property('x', self.x)
-        self.border.set_property('y', self.y)
-        self.border.set_property('width', self.width)
-        self.border.set_property('height', self.height)
-        self.border.set_property('stroke_color', self.border_color)
-        self.border.set_property('fill_color', self.border_color)
+        # Draw the border (filled rectangle)
+        r, g, b, a = parse_color(self.border_color)
+        cr.set_source_rgba(r, g, b, a)
+        cr.rectangle(self.x, self.y, self.width, self.height)
+        cr.fill()
 
-        # Draw the title text.
+        # Draw the title text
+        r, g, b, a = parse_color(self.title_text_color)
+        cr.set_source_rgba(r, g, b, a)
         padding_left = 2
-        self.text.set_property('x', self.x + padding_left)
-        self.text.set_property('y', self.y)
-        self.text.set_property('fill_color', self.title_text_color)
+        cr.move_to(self.x + padding_left, self.y)
+        PangoCairo.show_layout(cr, layout)
 
-        # Print the "body" of the day.
+        # Draw the "body" of the day
         if self.full_border:
             box_x = self.x + 2
             box_y = self.y + line_height
@@ -1089,56 +1156,48 @@ class DayItem(GooCanvas.CanvasGroup):
             box_y = self.y + line_height
             box_width = max(self.width - 2, 0)
             box_height = max(self.height - line_height, 0)
-        self.box.set_property('x', box_x)
-        self.box.set_property('y', box_y)
-        self.box.set_property('width', box_width)
-        self.box.set_property('height', box_height)
-        self.box.set_property('stroke_color', self.body_color)
-        self.box.set_property('fill_color', self.body_color)
 
-        line_height_and_margin = line_height + 2  # 2px of margin per line
-        self.n_lines = int(box_height / line_height_and_margin)
+        r, g, b, a = parse_color(self.body_color)
+        cr.set_source_rgba(r, g, b, a)
+        cr.rectangle(box_x, box_y, box_width, box_height)
+        cr.fill()
 
-        # Show an indicator in the title, if requested.
-        if not self.show_indic:
-            self.indic.set_property(
-                'visibility', GooCanvas.CanvasItemVisibility.INVISIBLE)
-            return
+        line_height_and_margin = line_height + 2
+        self.n_lines = (
+            int(box_height / line_height_and_margin)
+            if line_height_and_margin > 0
+            else 0)
 
-        self.indic.set_property(
-            'visibility', GooCanvas.CanvasItemVisibility.VISIBLE)
-        self.indic.set_property('x',
-            self.x + self.width - line_height / 1.5)
-        self.indic.set_property('y', self.y + line_height / 3)
-        self.indic.set_property('width', line_height / 3)
-        self.indic.set_property('height', line_height / 3)
-        self.indic.set_property('stroke_color', self.title_text_color)
-        self.indic.set_property('fill_color', self.title_text_color)
-
-        # Draw a triangle.
-        x1 = self.x + self.width - line_height / 1.5
-        y1 = self.y + line_height / 3
-        x2 = x1 + line_height / 6
-        y2 = y1 + line_height / 3
-        x3 = x1 + line_height / 3
-        y3 = y1
-        path = 'M%s,%s L%s,%s L%s,%s Z' % (x1, y1, x2, y2, x3, y3)
-        self.indic.set_property('clip_path', path)
+        # Draw indicator if needed
+        if self.show_indic:
+            r, g, b, a = parse_color(self.title_text_color)
+            cr.set_source_rgba(r, g, b, a)
+            # Draw a triangle indicator
+            x1 = self.x + self.width - line_height / 1.5
+            y1 = self.y + line_height / 3
+            x2 = x1 + line_height / 6
+            y2 = y1 + line_height / 3
+            x3 = x1 + line_height / 3
+            y3 = y1
+            cr.move_to(x1, y1)
+            cr.line_to(x2, y2)
+            cr.line_to(x3, y3)
+            cr.close_path()
+            cr.fill()
 
 
-class EventItem(GooCanvas.CanvasGroup):
+class EventItem:
     """
-    A canvas item representing an event.
+    A data structure representing an event.
     """
 
     def __init__(self, cal, **kwargs):
-        super(EventItem, self).__init__()
-
         self._cal = cal
-        self.x = kwargs.get('x')
-        self.y = kwargs.get('y')
-        self.width = kwargs.get('width')
-        self.height = kwargs.get('height')
+        self.x = kwargs.get('x', 0)
+        self.y = kwargs.get('y', 0)
+        self.width = kwargs.get('width', 0)
+        self.height = kwargs.get('height', 0)
+        self.left_border = 0
         self.bg_color = kwargs.get('bg_color')
         self.text_color = kwargs.get('text_color', 'black')
         self.event = kwargs.get('event')
@@ -1146,239 +1205,273 @@ class EventItem(GooCanvas.CanvasGroup):
         self.time_format = kwargs.get('time_format')
         self.transparent = False
         self.no_caption = False
+        self._line_height = None
 
-        # Create canvas items.
-        self.box = GooCanvas.CanvasRect(parent=self)
-        self.text = GooCanvas.CanvasText(parent=self)
-        self.text.set_property('font', self._cal.props.font)
-        logical_height = self.text.get_natural_extents()[1].height
-        self.line_height = logical_height / Pango.SCALE
+    def get_line_height(self, cal):
+        """Get the line height for this event item."""
+        if self._line_height is not None:
+            return self._line_height
 
-        if self.x is not None:
-            self.update()
+        pango_context = cal.get_pango_context()
+        layout = Pango.Layout(pango_context)
+        layout.set_font_description(
+            Pango.FontDescription.from_string(cal.props.font))
+        layout.set_text("Test", -1)
+        _, logical_rect = layout.get_pixel_extents()
+        self._line_height = logical_rect.height
+        return self._line_height
 
-    def update(self):
-        if (self.event.all_day or self._cal.view == "month"
-                or self.event.multidays):
-            self.update_all_day_event()
-        else:
-            self.update_event()
+    def contains_point(self, px, py):
+        """Check if a point is within this event item."""
+        return (self.x <= px <= self.x + self.width
+            and self.y <= py <= self.y + self.height)
 
-    def update_event(self):
-        self.width = max(self.width, 0)
-        starttime = self.event.start.strftime(self.time_format)
-        endtime = self.event.end.strftime(self.time_format)
-        tooltip = '%s - %s\n%s' % (starttime, endtime, self.event.caption)
-
-        # Do we have enough width for caption
-        first_line = starttime + ' - ' + endtime
-        self.text.set_property('text', first_line)
-        logical_width = self.text.get_natural_extents()[1].width / Pango.SCALE
-        if self.width < logical_width:
-            first_line = starttime + ' - '
-
-        second_line = self.event.caption
-        self.text.set_property('text', second_line)
-        logical_width = self.text.get_natural_extents()[1].width / Pango.SCALE
-        if self.width < logical_width:
-            second_line = None
-
-        # Do we have enough height for whole caption
-        if self.height >= (2 * self.line_height):
-            caption = first_line
-            if second_line:
-                caption += '\n' + second_line
-        elif self.height >= self.line_height:
-            caption = first_line
-        else:
-            caption = ''
-        caption = '' if self.no_caption else caption
-        the_event_bg_color = self.event.bg_color
-
-        # Choose text color.
-        if self.event.text_color is None:
-            the_event_text_color = self.text_color
-        else:
-            the_event_text_color = self.event.text_color
-
-        if the_event_bg_color is not None:
-            self.box.set_property('x', self.x)
-            self.box.set_property('y', self.y)
-            self.box.set_property('width', self.width)
-            self.box.set_property('height', self.height)
-            self.box.set_property('stroke_color', the_event_bg_color)
-            self.box.set_property('fill_color', the_event_bg_color)
-            # Alpha color is set to half of 255, i.e an opacity of 5O percents
-            transparent_color = self.box.get_property('fill_color_rgba') - 128
-            if self.transparent:
-                self.box.set_property('stroke_color_rgba', transparent_color)
-                self.box.set_property('fill_color_rgba', transparent_color)
-            self.box.set_property('tooltip', tooltip)
-
-        # Print the event name into the title box.
-        self.text.set_property('x', self.x + 2)
-        self.text.set_property('y', self.y)
-        self.text.set_property('text', caption)
-        self.text.set_property('fill_color', the_event_text_color)
-        self.text.set_property('tooltip', tooltip)
-
-        # Clip the text.
-        x2, y2 = self.x + self.width, self.y + self.height,
-        path = 'M%s,%s L%s,%s L%s,%s L%s,%s Z' % (self.x, self.y, self.x, y2,
-            x2, y2, x2, self.y)
-        self.text.set_property('clip_path', path)
-
-    def update_all_day_event(self):
-        self.width = max(self.width, 0)
+    def get_tooltip(self):
+        """Get the tooltip text for this event."""
         startdate = self.event.start.strftime('%x')
         starttime = self.event.start.strftime(self.time_format)
         if self.event.end:
             enddate = self.event.end.strftime('%x')
             endtime = self.event.end.strftime(self.time_format)
-        caption = self.event.caption
 
         if self.event.all_day:
             if not self.event.end:
-                tooltip = '%s\n%s' % (startdate, caption)
+                return '%s\n%s' % (startdate, self.event.caption)
             else:
-                tooltip = '%s - %s\n%s' % (startdate, enddate, caption)
+                return '%s - %s\n%s' % (startdate, enddate, self.event.caption)
         elif self.event.multidays:
-            caption = '%s %s' % (starttime, caption)
             if not self.event.end:
-                tooltip = '%s %s\n%s' % (startdate, starttime, caption)
+                return '%s %s\n%s' % (startdate, starttime, self.event.caption)
             else:
-                tooltip = '%s %s - %s %s\n%s' % (startdate, starttime,
-                    enddate, endtime, caption)
+                return '%s %s - %s %s\n%s' % (startdate, starttime,
+                    enddate, endtime, self.event.caption)
         else:
-            caption = '%s %s' % (starttime, caption)
             if not self.event.end:
-                tooltip = '%s\n%s' % (starttime, caption)
+                return '%s\n%s' % (starttime, self.event.caption)
             else:
-                tooltip = '%s - %s\n%s' % (starttime, endtime, caption)
+                return '%s - %s\n%s' % (starttime, endtime, self.event.caption)
+
+    def draw(self, cr, cal):
+        """Draw this event item using Cairo."""
+        if (self.event.all_day or cal.view == "month"
+                or self.event.multidays):
+            self._draw_all_day_event(cr, cal)
+        else:
+            self._draw_event(cr, cal)
+
+    def _draw_event(self, cr, cal):
+        self.width = max(self.width, 0)
+        starttime = self.event.start.strftime(self.time_format)
+        endtime = self.event.end.strftime(self.time_format)
+
+        pango_context = cal.get_pango_context()
+        layout = Pango.Layout(pango_context)
+        layout.set_font_description(
+            Pango.FontDescription.from_string(cal.props.font))
+
+        first_line = starttime + ' - ' + endtime
+        layout.set_text(first_line, -1)
+        _, logical_rect = layout.get_pixel_extents()
+        line_height = logical_rect.height
+        self._line_height = line_height
+
+        if self.width < logical_rect.width:
+            first_line = starttime + ' - '
+
+        second_line = self.event.caption
+        layout.set_text(second_line, -1)
+        _, logical_rect = layout.get_pixel_extents()
+        if self.width < logical_rect.width:
+            second_line = None
+
+        if self.height >= (2 * line_height):
+            caption = first_line
+            if second_line:
+                caption += '\n' + second_line
+        elif self.height >= line_height:
+            caption = first_line
+        else:
+            caption = ''
         caption = '' if self.no_caption else caption
         the_event_bg_color = self.event.bg_color
-        self.text.set_property('text', caption)
-        logical_height = self.text.get_natural_extents()[1].height
-        self.height = logical_height / Pango.SCALE
-
-        # Choose text color.
         if self.event.text_color is None:
             the_event_text_color = self.text_color
         else:
             the_event_text_color = self.event.text_color
 
         if the_event_bg_color is not None:
-            self.box.set_property('x', self.x)
-            self.box.set_property('y', self.y)
-            self.box.set_property('width', self.width)
-            self.box.set_property('height', self.height)
-            self.box.set_property('stroke_color', the_event_bg_color)
-            self.box.set_property('fill_color', the_event_bg_color)
-            transparent_color = self.box.get_property('fill_color_rgba') - 128
+            r, g, b, a = parse_color(the_event_bg_color)
             if self.transparent:
-                self.box.set_property('stroke_color_rgba', transparent_color)
-                self.box.set_property('fill_color_rgba', transparent_color)
-            self.box.set_property('tooltip', tooltip)
+                a = 0.5
+            cr.set_source_rgba(r, g, b, a)
+            cr.rectangle(self.x, self.y, self.width, self.height)
+            cr.fill()
 
-        # Print the event name into the title box.
-        self.text.set_property('x', self.x + 2)
-        self.text.set_property('y', self.y)
-        self.text.set_property('fill_color', the_event_text_color)
-        self.text.set_property('tooltip', tooltip)
+        # Draw the text
+        r, g, b, a = parse_color(the_event_text_color)
+        cr.set_source_rgba(r, g, b, a)
 
-        # Clip the text.
-        x2, y2 = self.x + self.width, self.y + self.height,
-        path = 'M%s,%s L%s,%s L%s,%s L%s,%s Z' % (
-            self.x, self.y, self.x, y2, x2, y2, x2, self.y)
-        self.text.set_property('clip_path', path)
+        # Clip to event bounds
+        cr.save()
+        cr.rectangle(self.x, self.y, self.width, self.height)
+        cr.clip()
+
+        layout.set_text(caption, -1)
+        cr.move_to(self.x + 2, self.y)
+        PangoCairo.show_layout(cr, layout)
+
+        cr.restore()
+
+    def _draw_all_day_event(self, cr, cal):
+        self.width = max(self.width, 0)
+        starttime = self.event.start.strftime(self.time_format)
+
+        pango_context = cal.get_pango_context()
+        layout = Pango.Layout(pango_context)
+        layout.set_font_description(
+            Pango.FontDescription.from_string(cal.props.font))
+
+        caption = self.event.caption
+        if not self.event.all_day and not self.event.multidays:
+            caption = '%s %s' % (starttime, caption)
+        elif self.event.multidays:
+            caption = '%s %s' % (starttime, caption)
+
+        caption = '' if self.no_caption else caption
+        layout.set_text(caption, -1)
+        _, logical_rect = layout.get_pixel_extents()
+        self.height = logical_rect.height
+        self._line_height = logical_rect.height
+
+        the_event_bg_color = self.event.bg_color
+        if self.event.text_color is None:
+            the_event_text_color = self.text_color
+        else:
+            the_event_text_color = self.event.text_color
+
+        if the_event_bg_color is not None:
+            r, g, b, a = parse_color(the_event_bg_color)
+            if self.transparent:
+                a = 0.5
+            cr.set_source_rgba(r, g, b, a)
+            cr.rectangle(self.x, self.y, self.width, self.height)
+            cr.fill()
+
+        # Draw the text
+        r, g, b, a = parse_color(the_event_text_color)
+        cr.set_source_rgba(r, g, b, a)
+
+        # Clip to event bounds
+        cr.save()
+        cr.rectangle(self.x, self.y, self.width, self.height)
+        cr.clip()
+
+        cr.move_to(self.x + 2, self.y)
+        PangoCairo.show_layout(cr, layout)
+
+        cr.restore()
 
 
-class TimelineItem(GooCanvas.CanvasGroup):
+class TimelineItem:
     """
-    A canvas item representing a timeline.
+    A data structure representing a timeline.
     """
 
     def __init__(self, cal, **kwargs):
-        super(TimelineItem, self).__init__()
-
         self._cal = cal
-        self.x = kwargs.get('x')
-        self.y = kwargs.get('y')
+        self.x = kwargs.get('x', 0)
+        self.y = kwargs.get('y', 0)
+        self.height = kwargs.get('height', 0)
         self.line_color = kwargs.get('line_color')
         self.bg_color = kwargs.get('bg_color')
         self.text_color = kwargs.get('text_color')
         self.time_format = kwargs.get('time_format')
-        self.width = 0
+        self._width = None
+        self._min_line_height = None
+        self.visible = False
 
-        # Create canvas items.
-        self._timeline_rect = {}
-        self._timeline_text = {}
+    def get_width(self, cal):
+        """Compute the width needed for the timeline."""
+        if self._width is not None:
+            return self._width
+
+        pango_context = cal.get_pango_context()
+        layout = Pango.Layout(pango_context)
+        layout.set_font_description(
+            Pango.FontDescription.from_string(cal.props.font))
+
+        max_width = 0
         for n in range(24):
             caption = datetime.time(n).strftime(self.time_format)
-            self._timeline_rect[n] = GooCanvas.CanvasRect(parent=self)
-            self._timeline_text[n] = GooCanvas.CanvasText(
-                parent=self, text=caption)
+            layout.set_text(caption, -1)
+            ink_rect, logical_rect = layout.get_pixel_extents()
+            max_width = max(max_width, logical_rect.width)
 
-        if self.x is not None:
-            self.update()
-        else:
-            self._compute_width()
+        self._width = max_width + 4  # Add some padding
+        return self._width
 
-    @property
-    def min_line_height(self):
-        logical_height = 0
-        self.ink_padding_top = 0
+    def get_min_line_height(self, cal):
+        """Get the minimum line height for the timeline."""
+        if self._min_line_height is not None:
+            return self._min_line_height
+
+        pango_context = cal.get_pango_context()
+        layout = Pango.Layout(pango_context)
+        layout.set_font_description(
+            Pango.FontDescription.from_string(cal.props.font))
+
+        max_height = 0
         for n in range(24):
-            natural_extents = self._timeline_text[n].get_natural_extents()
-            logical_rect = natural_extents[1]
-            logical_height = max(logical_height, logical_rect.height)
-            ink_rect = natural_extents[0]
-            self.ink_padding_top = max(self.ink_padding_top, ink_rect.x)
-        line_height = int(math.ceil(float(logical_height) / Pango.SCALE))
-        return line_height
+            caption = datetime.time(n).strftime(self.time_format)
+            layout.set_text(caption, -1)
+            _, logical_rect = layout.get_pixel_extents()
+            max_height = max(max_height, logical_rect.height)
 
-    @property
-    def line_height(self):
-        self.padding_top = 0
-        line_height = self.min_line_height
-        if line_height < self.height // 24:
-            line_height = self.height // 24
-            padding_top = (line_height - self._cal.font_size / Pango.SCALE) / 2
-            padding_top -= int(math.ceil(
-                    float(self.ink_padding_top) / Pango.SCALE))
-            self.padding_top = padding_top
-        return line_height
+        self._min_line_height = max_height
+        return self._min_line_height
 
-    def _compute_width(self):
-        font = self._cal.props.font
-        ink_padding_left = 0
-        ink_max_width = 0
+    def get_line_height(self, cal):
+        """Get the actual line height for drawing."""
+        min_height = self.get_min_line_height(cal)
+        if self.height > 0 and min_height < self.height // 24:
+            return self.height // 24
+        return min_height
+
+    def draw(self, cr, cal):
+        """Draw the timeline using Cairo."""
+        width = self.get_width(cal)
+        line_height = self.get_line_height(cal)
+        min_line_height = self.get_min_line_height(cal)
+
+        # Compute padding for centering text
+        padding_top = 0
+        if line_height > min_line_height:
+            padding_top = (line_height - min_line_height) / 2
+
+        pango_context = cal.get_pango_context()
+        layout = Pango.Layout(pango_context)
+        layout.set_font_description(
+            Pango.FontDescription.from_string(cal.props.font))
+
         for n in range(24):
-            self._timeline_text[n].set_property('font', font)
-            natural_extents = self._timeline_text[n].get_natural_extents()
-            ink_rect = natural_extents[0]
-            ink_padding_left = max(ink_padding_left, ink_rect.x)
-            ink_max_width = max(ink_max_width, ink_rect.width)
-        self.width = int(math.ceil(
-                float(ink_padding_left + ink_max_width) / Pango.SCALE))
-
-    def update(self):
-        self._compute_width()
-        line_height = self.line_height
-
-        # Draw the timeline.
-        for n in range(24):
-            rect = self._timeline_rect[n]
-            text = self._timeline_text[n]
             y = self.y + n * line_height
+            caption = datetime.time(n).strftime(self.time_format)
 
-            rect.set_property('x', self.x)
-            rect.set_property('y', y)
-            rect.set_property('width', self.width)
-            rect.set_property('height', line_height)
-            rect.set_property('stroke_color', self.line_color)
-            rect.set_property('fill_color', self.bg_color)
+            # Draw background
+            r, g, b, a = parse_color(self.bg_color)
+            cr.set_source_rgba(r, g, b, a)
+            cr.rectangle(self.x, y, width, line_height)
+            cr.fill()
 
-            text.set_property('x', self.x)
-            text.set_property('y', y + self.padding_top)
-            text.set_property('fill_color', self.text_color)
+            # Draw line separator
+            r, g, b, a = parse_color(self.line_color)
+            cr.set_source_rgba(r, g, b, a)
+            cr.rectangle(self.x, y, width, 1)
+            cr.fill()
+
+            # Draw text
+            r, g, b, a = parse_color(self.text_color)
+            cr.set_source_rgba(r, g, b, a)
+            layout.set_text(caption, -1)
+            cr.move_to(self.x, y + padding_top)
+            PangoCairo.show_layout(cr, layout)

@@ -1,25 +1,25 @@
-:mod:`goocalendar` --- Calendar widget using GooCanvas
-======================================================
+:mod:`goocalendar` --- Calendar widget
+======================================
 
 .. module:: goocalendar
-   :synopsis: Calendar widget using GooCanvas
+   :synopsis: Calendar widget
 .. moduleauthor:: Samuel Abels <http://debain.org>
 .. moduleauthor:: Cédric Krier <cedric.krier@b2ck.com>
 .. moduleauthor:: Antoine Smolders <smoldersan@gmail.com>
 .. sectionauthor:: Antoine Smolders <smoldersan@gmail.com>
 
-The :mod:`goocalendar <goocalendar>` module supplies a calendar widget drawed
-with GooCanvas that can display a month view and a week view. It also supplies
-classes to manage events you can add to the calendar.
+The :mod:`goocalendar <goocalendar>` module supplies a calendar widget that can
+display a month view and a week view.
+It also supplies classes to manage events you can add to the calendar.
 
 
 .. _calendar:
 
 Calendar Objects
 ------------------
-A :class:`Calendar <goocalendar.Calendar>` is a calendar widget using
-GooCanvas that can display a month view and a week view. It holds an
-:class:`EventStore<goocalendar.EventStore>` which contains events
+A :class:`Calendar <goocalendar.Calendar>` is a calendar widget that can
+display a month view and a week view.
+It holds an :class:`EventStore<goocalendar.EventStore>` which contains events
 displayed in the calendar.
 
 .. class:: goocalendar.Calendar([event_store[, view[, time_format[, \

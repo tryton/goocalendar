@@ -1,7 +1,7 @@
 GooCalendar
 ===========
 
-A calendar widget for GTK using GooCanvas
+A calendar widget for GTK
 
 Nutshell
 --------

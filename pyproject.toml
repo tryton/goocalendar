@@ -9,11 +9,11 @@ requires-python = '>=3.9'
 maintainers = [
     {name = "Tryton", email = "foundation@tryton.org"},
     ]
-description = "A calendar widget for GTK using PyGoocanvas"
+description = "A calendar widget for GTK"
 readme = 'README.rst'
 license = 'GPL-2.0-or-later'
 license-files = ['LICENSE', 'COPYRIGHT']
-keywords = ["calendar", "GTK", "GooCanvas", "widget"]
+keywords = ["calendar", "GTK", "widget"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: X11 Applications :: GTK",
