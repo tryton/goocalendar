@@ -9,4 +9,4 @@ from ._calendar import Calendar  # noqa: E402
 from ._event import Event, EventStore  # noqa: E402
 
 __all__ = ['Calendar', 'EventStore', 'Event']
-__version__ = '0.8.1'
+__version__ = '1.0.0'
